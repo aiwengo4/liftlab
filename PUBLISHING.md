@@ -1,5 +1,5 @@
 ---
-status: prepared
+status: published
 updated: 2026-09-15
 ---
 
@@ -9,7 +9,9 @@ updated: 2026-09-15
 
 Основная площадка — GitHub Pages из публичного репозитория `liftlab`. Сайт остаётся статическим: параметры и результаты не отправляются на сервер, расчёт выполняется в Web Worker браузера.
 
-Ожидаемый адрес: `https://<github-login>.github.io/liftlab/`.
+Рабочий адрес: `https://aiwengo4.github.io/liftlab/`.
+
+Публичный репозиторий: `https://github.com/aiwengo4/liftlab`.
 
 ## Что уже подготовлено
 

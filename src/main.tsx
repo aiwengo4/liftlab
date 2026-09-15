@@ -7,6 +7,7 @@ import './results.css'
 import './saved-scenarios.css'
 import './comparison.css'
 import './compact.css'
+import './interactions.css'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

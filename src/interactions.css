@@ -1,0 +1,102 @@
+/* Единая обратная связь для интерактивных элементов. Hover включается только
+   на устройствах, которые действительно поддерживают наведение указателем. */
+button,
+a,
+summary,
+select,
+input[type='checkbox'],
+input[type='radio'],
+.check-line,
+.compare-check,
+.stop-floor-grid label {
+  transition: background-color 150ms ease, border-color 150ms ease,
+    color 150ms ease, box-shadow 150ms ease, filter 150ms ease,
+    transform 150ms ease;
+}
+
+button:disabled,
+input:disabled,
+select:disabled,
+label:has(> input:disabled) {
+  cursor: not-allowed;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  button:not(:disabled):hover {
+    filter: brightness(.96) saturate(1.06);
+    box-shadow: 0 3px 10px rgba(31, 70, 46, .12);
+  }
+
+  .primary-button:not(:disabled):hover {
+    filter: brightness(.94) saturate(1.08);
+    box-shadow: 0 5px 16px rgba(18, 48, 29, .22);
+  }
+
+  .brand-button:hover,
+  .text-button:hover,
+  .view-tabs button:hover,
+  .method-toc button:hover {
+    color: var(--green);
+    background-color: #edf4e8;
+  }
+
+  a:hover {
+    color: #155537;
+    text-decoration-thickness: 2px;
+  }
+
+  summary:hover {
+    color: var(--green);
+    background-color: rgba(232, 242, 225, .62);
+  }
+
+  .top-disclosure > summary:hover,
+  .method-card > summary:hover,
+  .result-disclosure > summary:hover {
+    border-radius: 9px;
+    box-shadow: inset 0 0 0 1px rgba(31, 107, 73, .08);
+  }
+
+  .field input:not(:disabled):not([aria-invalid='true']):hover,
+  .field select:not(:disabled):not([aria-invalid='true']):hover,
+  .elevator-card select:not(:disabled):hover,
+  .floor-row input:not(:disabled):hover,
+  .floor-count-card input:not(:disabled):hover,
+  .distribution-grid input:not(:disabled):hover,
+  .room-grid input:not(:disabled):hover,
+  textarea:not(:disabled):hover {
+    border-color: #8eaa94;
+    box-shadow: 0 2px 8px rgba(31, 70, 46, .08);
+  }
+
+  .check-line:not(:has(input:disabled)):hover,
+  .compare-check:not(:has(input:disabled)):hover {
+    color: var(--green);
+  }
+
+  .stop-floor-grid label:not(:has(input:disabled)):hover {
+    border-color: var(--green);
+    color: var(--green);
+    background-color: #eef6e9;
+    box-shadow: 0 2px 8px rgba(31, 70, 46, .1);
+  }
+
+  .saved-actions details button:not(:disabled):hover,
+  .dialog-actions > button:not(:disabled):hover,
+  .comparison-table th button:not(:disabled):hover {
+    border-color: var(--green);
+    color: var(--green);
+    background-color: #eef6e9;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  button,
+  a,
+  summary,
+  select,
+  input,
+  label {
+    transition: none;
+  }
+}

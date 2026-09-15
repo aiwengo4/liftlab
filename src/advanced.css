@@ -1,0 +1,197 @@
+.rooms-scroll {
+  max-height: 360px;
+  overflow: auto;
+  padding: 2px;
+}
+
+.room-setting {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 11px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: #fff;
+}
+
+.room-setting label {
+  font-size: .76rem;
+  font-weight: 750;
+}
+
+.room-setting input {
+  width: 100%;
+  height: 42px;
+  border: 1px solid #cfd5cd;
+  border-radius: 8px;
+  padding: 0 10px;
+}
+
+.room-setting small {
+  color: var(--muted);
+  font-size: .68rem;
+}
+
+.inline-action {
+  min-height: 30px;
+  border: 0;
+  background: none;
+  color: var(--green);
+  font-size: inherit;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.error-badge {
+  margin-left: auto;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #fff0ed;
+  color: var(--error);
+  font-size: .7rem;
+  white-space: nowrap;
+}
+
+.error-badge + small {
+  margin-left: 0;
+}
+
+.parking-list {
+  display: grid;
+  gap: 14px;
+}
+
+.parking-card {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+}
+
+.parking-card.has-error {
+  border-color: var(--error);
+}
+
+.parking-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.parking-interval {
+  display: grid;
+  grid-template-columns: minmax(110px, 1fr) minmax(110px, 1fr) minmax(90px, .7fr) auto;
+  align-items: end;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 10px;
+  background: var(--surface-soft, #f5f7f4);
+}
+
+.parking-empty {
+  margin: 0;
+  padding: 12px;
+  border-radius: 9px;
+  background: var(--surface-soft, #f5f7f4);
+  color: var(--muted);
+  font-size: .82rem;
+}
+
+.secondary-button,
+.remove-button {
+  min-height: 42px;
+  border-radius: 9px;
+  font: inherit;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.secondary-button {
+  justify-self: start;
+  padding: 0 14px;
+  border: 1px solid var(--green);
+  background: #fff;
+  color: var(--green);
+}
+
+.remove-button {
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--muted);
+}
+
+.secondary-button:focus-visible,
+.remove-button:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--green) 28%, transparent);
+  outline-offset: 2px;
+}
+
+@media (max-width: 720px) {
+  .parking-card-head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .parking-interval {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .parking-interval .remove-button {
+    grid-column: 1 / -1;
+  }
+}
+
+.share-button {
+  min-height: 38px;
+  padding: 0 13px;
+  border: 1px solid var(--green);
+  border-radius: 9px;
+  background: #fff;
+  color: var(--green);
+  font-size: .8rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.link-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 14px;
+  padding: 11px 14px;
+  border: 1px solid #b8cb9d;
+  border-radius: 11px;
+  background: #f7ffe9;
+  color: #385239;
+  font-size: .82rem;
+}
+
+.link-status button {
+  flex: 0 0 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: inherit;
+  font-size: 1.2rem;
+  cursor: pointer;
+}
+
+@media (max-width: 760px) {
+  .share-button { width: 100%; }
+}
+
+.limit-note { margin-top: 8px !important; color: var(--error); font-weight: 700; }
+.baseline-badge { display: block; width: max-content; margin: 5px 0; padding: 3px 6px; border-radius: 6px; background: #e8f4d8; color: var(--green); font-size: .62rem; }
+.compare-check:has(input:disabled) { color: var(--muted); }
+.compare-check { min-height: 44px; }
+.cancel-button { min-height:48px; padding:0 18px; border:1px solid #ffb4a9; border-radius:11px; background:transparent; color:#ffd7d1; font-weight:800; cursor:pointer; }
+.calculation-progress { display:flex; align-items:center; gap:10px; margin:-12px 0 18px; padding:12px 16px; border-radius:11px; background:#eef5e7; color:#385239; font-size:.84rem; }
+.progress-spinner { width:18px; height:18px; border:2px solid #b7c9ad; border-top-color:var(--green); border-radius:50%; animation:spin .8s linear infinite; }
+@keyframes spin { to { transform:rotate(360deg); } }
+@media(prefers-reduced-motion:reduce){.progress-spinner{animation:none;border-top-color:#b7c9ad;background:var(--green)}}

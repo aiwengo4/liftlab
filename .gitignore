@@ -1,0 +1,9 @@
+node_modules/
+dist/
+coverage/
+*.log
+*.tsbuildinfo
+.DS_Store
+
+# Не относится к проекту LiftLab и не должно попадать в публичный репозиторий.
+/аллокации расходов столы/

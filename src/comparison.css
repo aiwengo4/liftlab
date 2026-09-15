@@ -1,0 +1,36 @@
+.comparison > header > span {
+  color: var(--muted);
+  font-size: .8rem;
+}
+
+.comparison-table th small {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+}
+
+.comparison-table th button {
+  display: block;
+  min-height: 40px;
+  margin-top: 7px;
+  padding: 5px 8px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: #fff;
+  color: var(--green);
+  font-size: .68rem;
+  font-weight: 750;
+  cursor: pointer;
+}
+.comparison-table th button:focus-visible { outline: 3px solid rgba(36, 109, 67, .28); outline-offset: 2px; }
+.comparison-table thead th { max-width: 220px; white-space: normal; overflow-wrap: anywhere; }
+
+.comparison-better { color: #28703c !important; }
+.comparison-worse { color: var(--error) !important; }
+.comparison-same,
+.comparison-not-comparable { color: var(--muted) !important; }
+
+@media (max-width: 760px) {
+  .comparison-table th,
+  .comparison-table td { min-width: 145px; }
+}

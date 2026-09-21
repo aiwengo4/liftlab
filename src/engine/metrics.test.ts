@@ -76,6 +76,14 @@ describe('calculateSimulationMetrics', () => {
     expect(result.wholeDay.waiting.sampleSize).toBe(2)
     expect(result.wholeDay.riding.sampleSize).toBe(2)
     expect(result.wholeDay.total.sampleSize).toBe(4)
+    expect(result.wholeDay.routeGroups.elevator).toMatchObject({ routeCount: 2, shareOfAllRoutes: 0.5 })
+    expect(result.wholeDay.routeGroups.elevator.total.medianSeconds).toBe(42.5)
+    expect(result.wholeDay.routeGroups.stairs).toMatchObject({ routeCount: 2, shareOfAllRoutes: 0.5 })
+    expect(result.wholeDay.routeGroups.stairs.total.medianSeconds).toBe(22.5)
+    expect(result.wholeDay.routeGroups.all).toMatchObject({ routeCount: 4, shareOfAllRoutes: 1 })
+    expect(result.hours[9].routeGroups.elevator.total.medianSeconds).toBe(42.5)
+    expect(result.hours[9].routeGroups.stairs.total.medianSeconds).toBe(22.5)
+    expect(result.hours[9].total.medianSeconds).toBe(30)
     expect(result.counters.combinedRoutes).toBe(1)
   })
 
@@ -85,6 +93,23 @@ describe('calculateSimulationMetrics', () => {
     expect(result.wholeDay.longWaits[0].share).toBeNull()
     expect(result.counters.voluntaryStairsEmployeeShare).toBeNull()
     expect(result.hours).toHaveLength(24)
+  })
+
+  it('excludes same-floor calendar events from route metrics', () => {
+    const movement = trace('movement-1', 9 * 3600, { waiting: 10, riding: 20, total: 30 })
+    const noMovement = {
+      ...trace('same-floor-2', 10 * 3600, { total: 0, boarded: false }),
+      fromFloor: 2,
+      targetFloor: 2,
+    }
+
+    const result = calculateSimulationMetrics([movement, noMovement])
+
+    expect(result.wholeDay.routeCount).toBe(1)
+    expect(result.wholeDay.routeGroups.elevator.routeCount).toBe(1)
+    expect(result.wholeDay.routeGroups.stairs.routeCount).toBe(0)
+    expect(result.wholeDay.total.medianSeconds).toBe(30)
+    expect(result.counters.completedRoutes).toBe(1)
   })
 
   it('uses strict long-wait thresholds and allows custom values', () => {

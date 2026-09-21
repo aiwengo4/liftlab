@@ -97,6 +97,9 @@
 .strategy-explanation strong { font-size: .84rem; }
 .strategy-explanation p { margin: 3px 0; font-size: .76rem; line-height: 1.35; }
 .strategy-explanation small { color: var(--green); font-size: .7rem; font-weight: 700; }
+.distribution-action { display:flex; align-items:center; flex-wrap:wrap; gap:8px 12px; margin:10px 0 12px; }
+.distribution-action .secondary-button { min-height:36px; }
+.distribution-action .hint { flex:1 1 320px; margin:0; }
 .run-panel { margin: 10px 0; padding: 10px 14px; }
 .run-panel .primary-button, .run-panel .cancel-button { min-height: 42px; }
 .preview-banner { display:flex; align-items:center; justify-content:space-between; gap:16px; margin:10px 0; padding:10px 14px; border:1px solid #b9cfa8; border-radius:12px; background:#f2f8eb; color:#31422f; font-size:.82rem; }
@@ -132,6 +135,15 @@
 .underground-control .check-line { margin:8px 0; }
 .underground-control .hint { grid-column:1/-1; margin:0; }
 .section-intro { margin:0 0 12px; max-width:850px; color:var(--muted); font-size:.8rem; line-height:1.45; }
+.settings-toc { position:fixed; z-index:4; top:150px; left:max(12px,calc(50vw - 700px)); display:grid; width:126px; padding:10px 8px; border:1px solid var(--line); border-radius:13px; background:rgba(251,252,248,.96); box-shadow:0 10px 30px rgba(39,56,45,.09); backdrop-filter:blur(8px); }
+.settings-toc > strong { padding:2px 6px 8px; color:var(--muted); font-size:.68rem; letter-spacing:.08em; text-transform:uppercase; }
+.settings-toc button { display:grid; grid-template-columns:19px 1fr; align-items:center; gap:2px; min-height:34px; padding:5px 2px; border:0; border-radius:8px; background:transparent; color:var(--ink); text-align:left; cursor:pointer; }
+.settings-toc button:hover { background:#edf3e8; color:var(--green); }
+.settings-toc button:focus-visible { outline:2px solid rgba(31,107,73,.35); outline-offset:1px; }
+.settings-toc b { color:var(--green); font-size:.66rem; }
+.settings-toc span { font-size:.72rem; font-weight:750; }
+.top-disclosure[id], #settings-report { scroll-margin-top:18px; }
+@media (max-width:1339px) { .settings-toc { display:none; } }
 .page.grouped-layout details:has(> .parking-list) > summary > span:first-child { font-size:0; }
 .page.grouped-layout details:has(> .parking-list) > summary > span:first-child::after { content:'Парковка лифтов по расписанию'; font-size:.9rem; }
 .page.grouped-layout .top-disclosure:has(.field-error) > summary::before { content:'Есть ошибка'; order:3; margin-left:auto; padding:3px 7px; border-radius:999px; background:#fff0ed; color:#a33a2a; font-size:.66rem; font-weight:700; }

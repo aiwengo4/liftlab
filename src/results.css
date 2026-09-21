@@ -11,8 +11,40 @@
 .period-tabs button[aria-pressed=true] { border-color:var(--green); background:#edf7e7; box-shadow:inset 0 0 0 1px var(--green); }
 .period-tabs small { margin-top:3px; color:var(--muted); font-size:.7rem; }
 .result-note,.table-swipe { margin:10px 0 0; color:var(--muted); font-size:.75rem; }
+.route-statistics-groups { display:grid; gap:14px; }
+.route-statistics { padding:14px; border:1px solid var(--line); border-radius:12px; background:#f8faf6; }
+.route-statistics > header { display:flex; align-items:flex-start; justify-content:space-between; gap:18px; margin-bottom:10px; }
+.route-statistics h4 { margin:0; font-size:.92rem; }
+.route-statistics header p { margin:3px 0 0; color:var(--muted); font-size:.73rem; }
+.route-statistics header > strong { flex:none; color:var(--green); font-size:.78rem; white-space:nowrap; }
+.route-statistics .result-table { table-layout:fixed; }
+.route-statistics .result-table th:first-child,
+.route-statistics .result-table td:first-child { width:170px; }
+.route-statistics .result-table th:not(:first-child),
+.route-statistics .result-table td:not(:first-child) { width:104px; }
+.percentile-label { display:inline-flex; align-items:center; gap:4px; white-space:nowrap; }
+.help-tooltip { position:relative; display:inline-grid; place-items:center; width:18px; height:18px; padding:0; border:1px solid #9eaa9b; border-radius:50%; background:#fff; color:var(--green); font-family:inherit; font-size:.68rem; font-weight:700; line-height:1; cursor:help; }
+.help-tooltip > span { position:absolute; z-index:20; top:calc(100% + 8px); left:50%; width:260px; padding:10px 12px; border:1px solid #bfc8bb; border-radius:9px; background:#26342b; box-shadow:0 8px 24px rgba(24,39,29,.2); color:#fff; font-size:.73rem; font-weight:500; line-height:1.4; text-align:left; white-space:normal; opacity:0; visibility:hidden; transform:translateX(-50%) translateY(-3px); transition:opacity .14s ease,transform .14s ease,visibility .14s; pointer-events:none; }
+.help-tooltip:hover > span,
+.help-tooltip:focus-visible > span { opacity:1; visibility:visible; transform:translateX(-50%) translateY(0); }
+.help-tooltip:focus-visible { outline:2px solid rgba(31,107,73,.35); outline-offset:2px; }
 .table-swipe { display:none; }
-.result-table-scroll { max-width:100%; overflow:auto; border:1px solid var(--line); border-radius:11px; background:#fff; }
+.hourly-table-hint { display:flex; align-items:center; gap:7px; width:max-content; max-width:100%; margin:12px 0 7px; padding:6px 10px; border-radius:8px; background:#eef3e9; color:var(--green); font-weight:700; }
+.hourly-table-hint span { font-size:1rem; line-height:1; }
+.hourly-table-hint + .result-table-scroll .result-table { min-width:790px; table-layout:fixed; }
+.hourly-table-hint + .result-table-scroll .result-table th:first-child { width:64px; }
+.hourly-table-hint + .result-table-scroll .result-table th:nth-child(2) { width:82px; }
+.hourly-table-hint + .result-table-scroll .result-table th:nth-child(n+3) { width:72px; white-space:normal; line-height:1.3; }
+.hourly-route-filter { display:inline-flex; gap:4px; padding:4px; border:1px solid var(--line); border-radius:10px; background:#eef2ea; }
+.hourly-route-filter button { min-height:34px; padding:0 13px; border:0; border-radius:7px; background:transparent; color:var(--muted); font:inherit; font-size:.76rem; font-weight:700; cursor:pointer; }
+.hourly-route-filter button[aria-pressed=true] { background:#fff; color:var(--green); box-shadow:0 1px 4px rgba(25,45,31,.14); }
+.hourly-route-filter button:hover { color:var(--green); }
+.hourly-route-filter button:focus-visible { outline:2px solid rgba(31,107,73,.35); outline-offset:1px; }
+.result-table-scroll { max-width:100%; overflow:auto; border:1px solid var(--line); border-radius:11px; background:#fff; scrollbar-color:#6f876f #e2e8df; scrollbar-width:auto; }
+.result-table-scroll::-webkit-scrollbar { width:12px; height:12px; }
+.result-table-scroll::-webkit-scrollbar-track { border-radius:0 0 10px 10px; background:#e2e8df; }
+.result-table-scroll::-webkit-scrollbar-thumb { min-width:54px; border:2px solid #e2e8df; border-radius:99px; background:#6f876f; }
+.result-table-scroll::-webkit-scrollbar-thumb:hover { background:var(--green); }
 .result-table-scroll:focus-visible { outline:3px solid rgba(31,107,73,.18); outline-offset:2px; }
 .result-table { width:100%; min-width:720px; border-collapse:collapse; font-size:.78rem; font-variant-numeric:tabular-nums; }
 .result-table caption { padding:14px; text-align:left; font-weight:800; }
@@ -51,5 +83,5 @@
 .utilization-legend span { display:flex; align-items:center; gap:6px; }
 .utilization-legend i { width:9px; height:9px; border-radius:50%; }
 .sr-only { position:absolute!important; width:1px!important; height:1px!important; padding:0!important; margin:-1px!important; overflow:hidden!important; clip:rect(0,0,0,0)!important; white-space:nowrap!important; border:0!important; }
-@media(max-width:760px){.result-summary{grid-template-columns:1fr 1fr}.result-block>header{display:block}.result-block header p{margin-top:5px}.period-tabs{grid-template-columns:1fr 1fr}.histogram-grid{grid-template-columns:1fr}.table-swipe{display:block}.long-wait-list,.stair-grid{grid-template-columns:1fr}.result-disclosure > summary{align-items:flex-start;flex-wrap:wrap;padding:12px 0}.result-disclosure > summary small{order:3;width:100%;margin:0}.histogram-bars{height:180px}}
+@media(max-width:760px){.result-summary{grid-template-columns:1fr 1fr}.result-block>header{display:block}.result-block header p{margin-top:5px}.period-tabs{grid-template-columns:1fr 1fr}.histogram-grid{grid-template-columns:1fr}.route-statistics{padding:11px}.route-statistics>header{display:block}.route-statistics header>strong{display:block;margin-top:6px}.table-swipe{display:block}.long-wait-list,.stair-grid{grid-template-columns:1fr}.result-disclosure > summary{align-items:flex-start;flex-wrap:wrap;padding:12px 0}.result-disclosure > summary small{order:3;width:100%;margin:0}.histogram-bars{height:180px}}
 @media(max-width:430px){.result-summary{grid-template-columns:1fr}.period-tabs{grid-template-columns:1fr 1fr}.histogram{padding:12px}}

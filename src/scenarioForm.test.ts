@@ -144,4 +144,20 @@ describe('scenario form model', () => {
       expect(() => runScenarioFromForm(values), key).toThrow('содержат ошибки')
     }
   })
+
+  it('runs a scenario when both stair probability scales are disabled with zeros', () => {
+    const values = distributeEmployees({
+      ...createDefaultScenarioForm(),
+      totalEmployees: 1,
+      distributionMode: 'equal',
+      convenientStairProbabilities: Array(6).fill(0),
+      inconvenientStairProbabilities: Array(6).fill(0),
+      lunchOverloadStairProbabilities: Array(7).fill(0),
+    })
+
+    expect(validateScenarioForm(values).convenientStairProbabilities).toBeUndefined()
+    expect(validateScenarioForm(values).inconvenientStairProbabilities).toBeUndefined()
+    expect(validateScenarioForm(values).lunchOverloadStairProbabilities).toBeUndefined()
+    expect(() => runScenarioFromForm(values)).not.toThrow()
+  })
 })

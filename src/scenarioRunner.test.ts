@@ -42,9 +42,9 @@ describe('runScenarioFromForm', () => {
     })
 
     expect(actual).toEqual([
-      { seed: 7, employees: 8, routes: 74, events: 400, outcomeDigest: '35ff758abbc5bd58', digest: '305a75a68aa977ba' },
-      { seed: 42, employees: 12, routes: 114, events: 656, outcomeDigest: '3b40be026120790a', digest: '1ec43e04c471d200' },
-      { seed: 2026, employees: 16, routes: 148, events: 793, outcomeDigest: '81c86f21d304495e', digest: 'ba575894b83e1f1c' },
+      { seed: 7, employees: 8, routes: 60, events: 400, outcomeDigest: '0367bf6fce5a582c', digest: 'b748a547147e1416' },
+      { seed: 42, employees: 12, routes: 82, events: 656, outcomeDigest: '1fb5886c365b8b50', digest: '83df9201d9929c5e' },
+      { seed: 2026, employees: 16, routes: 94, events: 793, outcomeDigest: '8b7d1f2cd8fc6564', digest: '4ea6d1c45f396b62' },
     ])
   })
 
@@ -71,9 +71,9 @@ describe('runScenarioFromForm', () => {
       events: result.processedEvents.length,
       outcomeDigest: goldenDigest(outcome),
     }).toEqual({
-      routes: 2360,
+      routes: 1542,
       events: 12178,
-      outcomeDigest: '768a7cef64baf54f',
+      outcomeDigest: '3ba7e3fb18b4c4d2',
     })
   })
 
@@ -112,7 +112,7 @@ describe('runScenarioFromForm', () => {
     const result = runScenarioFromForm(form)
     expect(result.meetings.reduce((sum, meeting) => sum + meeting.participants.length, 0)).toBe(2)
     expect(result.lunches).toHaveLength(0)
-    expect(result.metrics.wholeDay.longWaits.map((item) => item.thresholdSeconds)).toEqual([1, 2, 3])
+    expect(result.metrics.wholeDay.longWaits.map((item) => item.thresholdSeconds)).toEqual([1, 2, 3, 60, 90])
   })
 
   it('passes per-elevator parking settings to the full-day engine', () => {

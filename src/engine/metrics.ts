@@ -43,6 +43,24 @@ export interface MetricSlice {
   readonly waitingDistributionSeconds: readonly number[]
   /** Raw values used by the UI to build a histogram with selectable buckets. */
   readonly totalDistributionSeconds: readonly number[]
+  readonly routeGroups: RouteMetricGroups
+}
+
+export interface RouteMetricGroup {
+  readonly routeCount: number
+  readonly shareOfAllRoutes: number | null
+  readonly waiting: TimeStatistics
+  readonly riding: TimeStatistics
+  readonly total: TimeStatistics
+}
+
+export interface RouteMetricGroups {
+  /** Routes that used an elevator, including routes completed with mandatory stairs. */
+  readonly elevator: RouteMetricGroup
+  /** Routes completed entirely by stairs. */
+  readonly stairs: RouteMetricGroup
+  /** All completed routes, regardless of transport mode. */
+  readonly all: RouteMetricGroup
 }
 
 export interface HourMetricSlice extends MetricSlice {
@@ -93,30 +111,31 @@ export function calculateSimulationMetrics(
   const ordered = [...traces].sort(
     (first, second) => first.actualStartAt - second.actualStartAt || first.employeeId - second.employeeId || first.id.localeCompare(second.id),
   )
-  const morning = tracesInPeriod(ordered, periods.morning)
-  const day = tracesInPeriod(ordered, periods.day)
-  const evening = tracesInPeriod(ordered, periods.evening)
-  const routedEmployees = new Set(ordered.map((trace) => trace.employeeId))
+  const movementTraces = ordered.filter((trace) => trace.fromFloor !== trace.targetFloor)
+  const morning = tracesInPeriod(movementTraces, periods.morning)
+  const day = tracesInPeriod(movementTraces, periods.day)
+  const evening = tracesInPeriod(movementTraces, periods.evening)
+  const routedEmployees = new Set(movementTraces.map((trace) => trace.employeeId))
   const voluntaryStairsEmployees = new Set<EmployeeId>(
-    ordered.filter((trace) => trace.choice.mode === 'stairs' && ['probability', 'lunch-overload'].includes(trace.choice.reason)).map((trace) => trace.employeeId),
+    movementTraces.filter((trace) => trace.choice.mode === 'stairs' && ['probability', 'lunch-overload'].includes(trace.choice.reason)).map((trace) => trace.employeeId),
   )
 
   return {
-    wholeDay: buildSlice(ordered, thresholds),
+    wholeDay: buildSlice(movementTraces, thresholds),
     morning: buildSlice(morning, thresholds),
     day: buildSlice(day, thresholds),
     evening: buildSlice(evening, thresholds),
     hours: Array.from({ length: 24 }, (_, hour) => {
-      const hourTraces = ordered.filter((trace) => tickToMinute(trace.actualStartAt) >= hour * 60 && tickToMinute(trace.actualStartAt) < (hour + 1) * 60)
+      const hourTraces = movementTraces.filter((trace) => tickToMinute(trace.actualStartAt) >= hour * 60 && tickToMinute(trace.actualStartAt) < (hour + 1) * 60)
       return { hour, startMinute: hour * 60, endMinute: (hour + 1) * 60, ...buildSlice(hourTraces, thresholds) }
     }),
     counters: {
       arrivedEmployees: new Set(ordered.filter((trace) => trace.purpose === 'arrival').map((trace) => trace.employeeId)).size,
       departedEmployees: new Set(ordered.filter((trace) => trace.purpose === 'departure').map((trace) => trace.employeeId)).size,
-      completedRoutes: ordered.length,
+      completedRoutes: movementTraces.length,
       employeesUsingVoluntaryStairs: voluntaryStairsEmployees.size,
       voluntaryStairsEmployeeShare: routedEmployees.size === 0 ? null : voluntaryStairsEmployees.size / routedEmployees.size,
-      combinedRoutes: ordered.filter((trace) => trace.boardedAt !== null && trace.stairsTicks > 0).length,
+      combinedRoutes: movementTraces.filter((trace) => trace.boardedAt !== null && trace.stairsTicks > 0).length,
       unfinishedRoutes: 0,
       waitingNow: 0,
     },
@@ -131,6 +150,7 @@ export function validateMetricsSettings(settings: MetricsSettings = {}): void {
 
 function buildSlice(traces: readonly JourneyTrace[], thresholds: readonly number[]): MetricSlice {
   const elevatorTraces = traces.filter((trace) => trace.boardedAt !== null)
+  const stairTraces = traces.filter((trace) => trace.boardedAt === null && trace.stairsTicks > 0)
   const waiting = elevatorTraces.map((trace) => ticksToSeconds(trace.waitingTicks))
   const riding = elevatorTraces.map((trace) => ticksToSeconds(trace.ridingTicks))
   const total = traces.map((trace) => ticksToSeconds(trace.totalTicks))
@@ -146,6 +166,22 @@ function buildSlice(traces: readonly JourneyTrace[], thresholds: readonly number
     })),
     waitingDistributionSeconds: [...waiting].sort((a, b) => a - b),
     totalDistributionSeconds: [...total].sort((a, b) => a - b),
+    routeGroups: {
+      elevator: buildRouteGroup(elevatorTraces, traces.length),
+      stairs: buildRouteGroup(stairTraces, traces.length),
+      all: buildRouteGroup(traces, traces.length),
+    },
+  }
+}
+
+function buildRouteGroup(traces: readonly JourneyTrace[], allRouteCount: number): RouteMetricGroup {
+  const elevatorTraces = traces.filter((trace) => trace.boardedAt !== null)
+  return {
+    routeCount: traces.length,
+    shareOfAllRoutes: allRouteCount === 0 ? null : traces.length / allRouteCount,
+    waiting: statistics(elevatorTraces.map((trace) => ticksToSeconds(trace.waitingTicks))),
+    riding: statistics(elevatorTraces.map((trace) => ticksToSeconds(trace.ridingTicks))),
+    total: statistics(traces.map((trace) => ticksToSeconds(trace.totalTicks))),
   }
 }
 

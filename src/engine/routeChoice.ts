@@ -29,7 +29,7 @@ export function lunchOverloadStairProbability(
   settings: LunchOverloadStairSettings,
 ): number {
   if (!Number.isSafeInteger(distanceFloors) || distanceFloors < 1) throw new RangeError('Расстояние до столовой должно быть положительным целым числом этажей')
-  if (settings.probabilities.length !== 7 || settings.probabilities.some((value) => !Number.isFinite(value) || value < 0.05 || value > 1)) throw new RangeError('Нужно задать семь вероятностей лестницы от 0,05 до 1')
+  if (settings.probabilities.length !== 7 || settings.probabilities.some((value) => !Number.isFinite(value) || value < 0 || (value > 0 && value < 0.05) || value > 1)) throw new RangeError('Нужно задать семь вероятностей лестницы: 0 для отключения или от 0,05 до 1')
   if (!Number.isFinite(settings.inconvenientFactor) || settings.inconvenientFactor < 0 || settings.inconvenientFactor > 1) throw new RangeError('Коэффициент неудобной лестницы должен быть от 0 до 1')
   if (!Number.isFinite(settings.thresholdCapacityMultiplier) || settings.thresholdCapacityMultiplier <= 0) throw new RangeError('Порог перегруза должен быть положительным')
   const base = settings.probabilities[Math.min(distanceFloors, 7) - 1]

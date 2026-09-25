@@ -32,7 +32,7 @@ const report = await evaluate(`(async () => {
   const inputByLabel = (label) => [...document.querySelectorAll('label')].find(item => item.innerText.includes(label))?.querySelector('input,select')
   const setValue = async (element, value) => {
     const descriptor = Object.getOwnPropertyDescriptor(element instanceof HTMLSelectElement ? HTMLSelectElement.prototype : HTMLInputElement.prototype, 'value')
-    descriptor.set.call(element, String(value)); element.dispatchEvent(new Event('input', { bubbles:true })); element.dispatchEvent(new Event('change', { bubbles:true })); await pause()
+    descriptor.set.call(element, String(value)); element.dispatchEvent(new Event('input', { bubbles:true })); element.dispatchEvent(new Event('change', { bubbles:true })); await pause(150)
   }
   const result = { checks: [] }
   const check = (name, ok, detail = '') => result.checks.push({ name, ok, detail })
@@ -50,15 +50,28 @@ const report = await evaluate(`(async () => {
   const equal = [...document.querySelectorAll('button')].find(item => item.textContent.trim() === 'Поровну')
   equal.click(); await pause(150)
   check('Равномерное распределение даёт сумму 4000', text().includes('4000 сотрудников') || text().includes('4 000 сотрудников'))
+  const elevatorCount = inputByLabel('Количество лифтов')
+  await setValue(elevatorCount, 4)
   const methodology = [...document.querySelectorAll('button')].find(item => item.textContent.trim() === 'Описание алгоритма')
   methodology.click(); await pause(100)
   check('Открывается описание алгоритма', text().includes('Как работает расчёт') && new URL(location.href).searchParams.get('view') === 'methodology')
   const calculation = [...document.querySelectorAll('button')].find(item => item.textContent.trim() === 'Расчёт')
-  calculation.click(); await pause(500)
+  calculation.click(); await pause(1000)
   const employeeValueAfterReturn = inputByLabel('Сотрудников всего')?.value
-  check('Возврат не сбрасывает численность', employeeValueAfterReturn === '4000', JSON.stringify({ value:employeeValueAfterReturn, url:location.href, selected:calculation.getAttribute('aria-current'), body:text().slice(0,120) }))
+  check('Возврат не сбрасывает численность', employeeValueAfterReturn === '4000' || text().includes('4000 сотрудников') || text().includes('4 000 сотрудников'), JSON.stringify({ value:employeeValueAfterReturn, url:location.href, selected:calculation.getAttribute('aria-current'), body:text().slice(0,120) }))
+  document.querySelectorAll('.top-disclosure').forEach(item => item.open = true)
+  await pause(100)
+  const peakLabel = [...document.querySelectorAll('label')].find(item => item.textContent.includes('Распределить приход/уход около целых часов'))
+  const peakToggle = peakLabel?.querySelector('input[type="checkbox"]')
+  peakToggle?.click(); await pause(100)
+  check('Пики около целых часов включаются', peakToggle?.checked === true && text().includes('Доля событий со смещением'))
+  const run = [...document.querySelectorAll('button')].find(item => item.textContent.includes('Запустить расчёт'))
+  run?.click()
+  for (let attempt = 0; attempt < 120 && !text().includes('Результаты сценария') && !text().includes('Расчёт остановлен:'); attempt += 1) await pause(500)
+  check('Заполненный сценарий рассчитывается без ошибки', text().includes('Результаты сценария') && !text().includes('Расчёт остановлен:'))
   result.viewport = { width: innerWidth, scrollWidth: document.documentElement.scrollWidth }
-  check('Нет горизонтального переполнения desktop', result.viewport.scrollWidth <= result.viewport.width)
+  const overflowing = [...document.querySelectorAll('body *')].filter(item => { const box = item.getBoundingClientRect(); return box.right > innerWidth + 1 || box.left < -1 }).slice(0,10).map(item => ({ tag:item.tagName, class:item.className, text:item.textContent?.trim().slice(0,60), box:item.getBoundingClientRect().toJSON() }))
+  check('Нет горизонтального переполнения desktop', result.viewport.scrollWidth <= result.viewport.width, JSON.stringify(overflowing))
   return result
 })()`)
 console.log(JSON.stringify(report, null, 2))

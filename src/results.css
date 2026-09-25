@@ -12,7 +12,7 @@
 .period-tabs small { margin-top:3px; color:var(--muted); font-size:.7rem; }
 .result-note,.table-swipe { margin:10px 0 0; color:var(--muted); font-size:.75rem; }
 .route-statistics-groups { display:grid; gap:14px; }
-.route-statistics { padding:14px; border:1px solid var(--line); border-radius:12px; background:#f8faf6; }
+.route-statistics { min-width:0; padding:14px; border:1px solid var(--line); border-radius:12px; background:#f8faf6; }
 .route-statistics > header { display:flex; align-items:flex-start; justify-content:space-between; gap:18px; margin-bottom:10px; }
 .route-statistics h4 { margin:0; font-size:.92rem; }
 .route-statistics header p { margin:3px 0 0; color:var(--muted); font-size:.73rem; }

@@ -135,6 +135,7 @@
 .underground-control .check-line { margin:8px 0; }
 .underground-control .hint { grid-column:1/-1; margin:0; }
 .section-intro { margin:0 0 12px; max-width:850px; color:var(--muted); font-size:.8rem; line-height:1.45; }
+.saved-actions details:not([open]) > div { display:none; }
 .settings-toc { position:fixed; z-index:4; top:150px; left:max(12px,calc(50vw - 700px)); display:grid; width:126px; padding:10px 8px; border:1px solid var(--line); border-radius:13px; background:rgba(251,252,248,.96); box-shadow:0 10px 30px rgba(39,56,45,.09); backdrop-filter:blur(8px); }
 .settings-toc > strong { padding:2px 6px 8px; color:var(--muted); font-size:.68rem; letter-spacing:.08em; text-transform:uppercase; }
 .settings-toc button { display:grid; grid-template-columns:19px 1fr; align-items:center; gap:2px; min-height:34px; padding:5px 2px; border:0; border-radius:8px; background:transparent; color:var(--ink); text-align:left; cursor:pointer; }

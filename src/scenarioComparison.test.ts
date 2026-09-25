@@ -4,7 +4,7 @@ import { reportFingerprint, trafficFingerprint } from './scenarioComparison'
 import { compareMetric, comparisonCompatibility, type SavedScenario, type ScenarioSnapshot } from './savedScenarios'
 
 function snapshot(form = createDefaultScenarioForm()): ScenarioSnapshot {
-  return { snapshotVersion: 2, simulationModelVersion: 'personal-calendars-v1', trafficFingerprint: trafficFingerprint(form), reportFingerprint: reportFingerprint(form), waitingMeanSeconds: 10, waitingP90Seconds: 20, totalMeanSeconds: 30, maximumQueue: 4, emptyFloorsTravelled: 5 }
+  return { snapshotVersion: 3, simulationModelVersion: 'personal-calendars-v1', trafficFingerprint: trafficFingerprint(form), reportFingerprint: reportFingerprint(form), waitingMeanSeconds: 10, waitingMedianSeconds: 9, waitingP90Seconds: 20, totalMeanSeconds: 30, totalMedianSeconds: 28, maximumQueue: 4, emptyFloorsTravelled: 5 }
 }
 function saved(id: string, form = createDefaultScenarioForm()): SavedScenario { return { id, name: id, comment: '', savedAt: 'now', form, snapshot: snapshot(form) } }
 

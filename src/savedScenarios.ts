@@ -7,13 +7,15 @@ export const SAVED_SCENARIOS_KEY = 'liftlab.saved-scenarios.v1'
 export const MAX_SAVED_SCENARIOS = 20
 
 export interface ScenarioSnapshot {
-  snapshotVersion: 2
+  snapshotVersion: 3
   simulationModelVersion: string
   trafficFingerprint: string
   reportFingerprint: string
   waitingMeanSeconds: number | null
+  waitingMedianSeconds: number | null
   waitingP90Seconds: number | null
   totalMeanSeconds: number | null
+  totalMedianSeconds: number | null
   maximumQueue: number
   emptyFloorsTravelled: number
 }
@@ -32,13 +34,15 @@ interface StoreEnvelope { version: 1; items: readonly SavedScenario[] }
 export function snapshotResult(result: BrowserSimulationResult | null, form: ScenarioFormState): ScenarioSnapshot | null {
   if (!result) return null
   return {
-    snapshotVersion: 2,
+    snapshotVersion: 3,
     simulationModelVersion: SIMULATION_MODEL_VERSION,
     trafficFingerprint: trafficFingerprint(form),
     reportFingerprint: reportFingerprint(form),
     waitingMeanSeconds: result.metrics.wholeDay.waiting.meanSeconds,
+    waitingMedianSeconds: result.metrics.wholeDay.waiting.medianSeconds,
     waitingP90Seconds: result.metrics.wholeDay.waiting.p90Seconds,
     totalMeanSeconds: result.metrics.wholeDay.total.meanSeconds,
+    totalMedianSeconds: result.metrics.wholeDay.total.medianSeconds,
     maximumQueue: result.operationalMetrics.queue.maximumWaitingInBuilding,
     emptyFloorsTravelled: result.operationalMetrics.group.resource.emptyFloorsTravelled,
   }
@@ -56,10 +60,11 @@ export function loadSavedScenarios(storage: Pick<Storage, 'getItem'>): SavedScen
       if (form === null) return []
       const migrated = !Array.isArray((item.form as Record<string, unknown>).meetingRoomFoundSharesByHour)
       const legacyMarker = migrated || item.migratedFromLegacy === true
-      const snapshotMatchesForm = isSnapshot(item.snapshot) && item.snapshot.trafficFingerprint === trafficFingerprint(form) && item.snapshot.reportFingerprint === reportFingerprint(form)
+      const snapshot = normalizeSnapshot(item.snapshot)
+      const snapshotMatchesForm = snapshot !== null && snapshot.trafficFingerprint === trafficFingerprint(form) && snapshot.reportFingerprint === reportFingerprint(form)
       const snapshotNeedsUpgrade = !legacyMarker && item.snapshot !== null && !snapshotMatchesForm
       const { migratedFromLegacy: _rawMarker, snapshotNeedsUpgrade: _rawUpgrade, ...cleanItem } = item
-      const candidate = { ...cleanItem, form, snapshot: legacyMarker || snapshotNeedsUpgrade ? null : item.snapshot, ...(legacyMarker ? { migratedFromLegacy: true } : {}), ...(snapshotNeedsUpgrade ? { snapshotNeedsUpgrade: true } : {}) }
+      const candidate = { ...cleanItem, form, snapshot: legacyMarker || snapshotNeedsUpgrade ? null : snapshot, ...(legacyMarker ? { migratedFromLegacy: true } : {}), ...(snapshotNeedsUpgrade ? { snapshotNeedsUpgrade: true } : {}) }
       return isSavedScenario(candidate) ? [candidate] : []
     }).slice(0, MAX_SAVED_SCENARIOS)
   } catch { return [] }
@@ -114,8 +119,14 @@ function isSavedScenario(value: unknown): value is SavedScenario {
   return value.snapshot === null || isSnapshot(value.snapshot)
 }
 function isSnapshot(value: unknown): value is ScenarioSnapshot {
-  if (!record(value) || value.snapshotVersion !== 2 || value.simulationModelVersion !== SIMULATION_MODEL_VERSION || typeof value.trafficFingerprint !== 'string' || typeof value.reportFingerprint !== 'string') return false
-  return nullable(value.waitingMeanSeconds) && nullable(value.waitingP90Seconds) && nullable(value.totalMeanSeconds) && finite(value.maximumQueue) && finite(value.emptyFloorsTravelled)
+  if (!record(value) || value.snapshotVersion !== 3 || value.simulationModelVersion !== SIMULATION_MODEL_VERSION || typeof value.trafficFingerprint !== 'string' || typeof value.reportFingerprint !== 'string') return false
+  return nullable(value.waitingMeanSeconds) && nullable(value.waitingMedianSeconds) && nullable(value.waitingP90Seconds) && nullable(value.totalMeanSeconds) && nullable(value.totalMedianSeconds) && finite(value.maximumQueue) && finite(value.emptyFloorsTravelled)
+}
+function normalizeSnapshot(value: unknown): ScenarioSnapshot | null {
+  if (isSnapshot(value)) return value
+  if (!record(value) || value.snapshotVersion !== 2 || value.simulationModelVersion !== SIMULATION_MODEL_VERSION || typeof value.trafficFingerprint !== 'string' || typeof value.reportFingerprint !== 'string') return null
+  if (!nullable(value.waitingMeanSeconds) || !nullable(value.waitingP90Seconds) || !nullable(value.totalMeanSeconds) || !finite(value.maximumQueue) || !finite(value.emptyFloorsTravelled)) return null
+  return { ...value, snapshotVersion: 3, waitingMedianSeconds: null, totalMedianSeconds: null } as ScenarioSnapshot
 }
 function record(value: unknown): value is Record<string, unknown> { return typeof value === 'object' && value !== null && !Array.isArray(value) }
 function finite(value: unknown): value is number { return typeof value === 'number' && Number.isFinite(value) }

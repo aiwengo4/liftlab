@@ -49,6 +49,15 @@ describe('saved scenarios', () => {
     const [loaded] = loadSavedScenarios(memory(JSON.stringify({ version: 1, items: [{ ...item, snapshot: staleSnapshot }] })))
     expect(loaded).toMatchObject({ snapshot: null, snapshotNeedsUpgrade: true })
   })
+  it('keeps version 2 results and marks unavailable medians as empty', () => {
+    const form = createDefaultScenarioForm()
+    const item = makeSavedScenario(form, null, 'Old result', '', 'old-result', 'now')
+    const snapshot = { snapshotVersion: 2, simulationModelVersion: SIMULATION_MODEL_VERSION, trafficFingerprint: trafficFingerprint(form), reportFingerprint: reportFingerprint(form), waitingMeanSeconds: 10, waitingP90Seconds: 30, totalMeanSeconds: 40, maximumQueue: 5, emptyFloorsTravelled: 6 }
+    const [loaded] = loadSavedScenarios(memory(JSON.stringify({ version: 1, items: [{ ...item, snapshot }] })))
+
+    expect(loaded.snapshot).toMatchObject({ snapshotVersion: 3, waitingMedianSeconds: null, totalMedianSeconds: null })
+    expect(loaded.snapshotNeedsUpgrade).toBeUndefined()
+  })
   it('enforces names, comments and the maximum collection size', () => {
     expect(() => makeSavedScenario(createDefaultScenarioForm(), null, ' ', '', 'x', 'now')).toThrow('Название')
     const item = makeSavedScenario(createDefaultScenarioForm(), null, 'A', '', 'x', 'now')

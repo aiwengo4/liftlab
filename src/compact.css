@@ -135,6 +135,17 @@
 .underground-control .check-line { margin:8px 0; }
 .underground-control .hint { grid-column:1/-1; margin:0; }
 .section-intro { margin:0 0 12px; max-width:850px; color:var(--muted); font-size:.8rem; line-height:1.45; }
+.peak-bias-control { display:flex; align-items:flex-end; gap:22px; margin:0 0 4px; padding:12px 14px; border:1px solid var(--line); border-radius:12px; background:#f7f9f4; }
+.peak-bias-heading { display:flex; align-items:center; gap:7px; min-height:46px; }
+.peak-bias-heading .check-line { margin:0; font-weight:750; }
+.peak-bias-control > .field { width:220px; margin-left:auto; }
+.settings-help-tooltip > span { width:min(430px,calc(100vw - 48px)); }
+.disclosure:has(.settings-help-tooltip:hover),
+.disclosure:has(.settings-help-tooltip:focus-visible) { position:relative; z-index:30; }
+.peak-bias-control:has(.settings-help-tooltip:hover),
+.peak-bias-control:has(.settings-help-tooltip:focus-visible),
+.settings-help-tooltip:hover,
+.settings-help-tooltip:focus-visible { position:relative; z-index:31; }
 .settings-toc { position:fixed; z-index:4; top:150px; left:max(12px,calc(50vw - 700px)); display:grid; width:126px; padding:10px 8px; border:1px solid var(--line); border-radius:13px; background:rgba(251,252,248,.96); box-shadow:0 10px 30px rgba(39,56,45,.09); backdrop-filter:blur(8px); }
 .settings-toc > strong { padding:2px 6px 8px; color:var(--muted); font-size:.68rem; letter-spacing:.08em; text-transform:uppercase; }
 .settings-toc button { display:grid; grid-template-columns:19px 1fr; align-items:center; gap:2px; min-height:34px; padding:5px 2px; border:0; border-radius:8px; background:transparent; color:var(--ink); text-align:left; cursor:pointer; }
@@ -208,6 +219,8 @@
   .underground-control .hint { grid-column:auto; }
   .grouped-settings .distribution-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
   .page.grouped-layout .top-disclosure > .section-intro + .field-grid.two { margin:0; padding:11px 11px 3px; }
+  .peak-bias-control { align-items:stretch; flex-direction:column; gap:10px; }
+  .peak-bias-control > .field { width:100%; margin-left:0; }
 }
 
 @media (max-width: 440px) {

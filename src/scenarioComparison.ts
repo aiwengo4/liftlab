@@ -7,6 +7,7 @@ export function trafficFingerprint(form: ScenarioFormState): string {
     form.undergroundParkingEnabled, form.undergroundFloorCount, form.undergroundEmployeeShare,
     form.arrivalOverallStart, form.arrivalOverallEnd, form.arrivalPrimaryStart, form.arrivalPrimaryEnd, form.arrivalPrimaryShare,
     form.departureOverallStart, form.departureOverallEnd, form.departurePrimaryStart, form.departurePrimaryEnd, form.departurePrimaryShare,
+    form.wholeHourBiasEnabled, form.wholeHourBiasShare,
     form.arrivalInfluenceOnDeparture, form.meetingStart, form.meetingEnd, form.meanMeetingsPerEmployee, form.maxMeetingConcurrentShare,
     form.meetingDurationShares, form.meetingRoomFoundSharesByHour, form.lunchStart, form.lunchEnd, form.lunchPeak, form.lunchShare,
     form.lunchDurationMinutes, form.lunchDurationJitterMinutes, form.lunchWaveMinutes, form.cafeteriaFloor, form.stairSecondsPerFloor, form.stairsConvenient,

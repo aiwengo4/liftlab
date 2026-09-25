@@ -15,6 +15,7 @@ export function runScenarioFromForm(form: ScenarioFormState): FullDayResult {
     floors: form.floors.map(({ floor, employees }) => ({ floor, employees })),
     arrival: { overall: { startMinute: form.arrivalOverallStart, endMinute: form.arrivalOverallEnd }, primary: { startMinute: form.arrivalPrimaryStart, endMinute: form.arrivalPrimaryEnd }, primaryShare: form.arrivalPrimaryShare },
     departure: { overall: { startMinute: form.departureOverallStart, endMinute: form.departureOverallEnd }, primary: { startMinute: form.departurePrimaryStart, endMinute: form.departurePrimaryEnd }, primaryShare: form.departurePrimaryShare },
+    wholeHourBias: { enabled: form.wholeHourBiasEnabled, share: form.wholeHourBiasShare },
     arrivalInfluenceOnDeparture: form.arrivalInfluenceOnDeparture,
     undergroundParking: {
       enabled: form.undergroundParkingEnabled,

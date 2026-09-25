@@ -65,24 +65,6 @@ describe('generateDaySchedule', () => {
     }
   })
 
-  it('can concentrate tail events near whole hours without changing primary events', () => {
-    const baseline = generateDaySchedule(settings({ floors: [{ floor: 2, employees: 1000 }] }))
-    const biased = generateDaySchedule(settings({
-      floors: [{ floor: 2, employees: 1000 }],
-      wholeHourBias: { enabled: true, share: 1 },
-    }))
-    const isPrimaryArrival = (minute: number) => minute >= 9 * 60 && minute < 12 * 60
-    const nearHour = (minute: number) => minute % 60 >= 50 || minute % 60 <= 5
-    const baselinePrimary = baseline.employees.map(({ arrivalMinute }) => arrivalMinute).filter(isPrimaryArrival).sort((a, b) => a - b)
-    const biasedPrimary = biased.employees.map(({ arrivalMinute }) => arrivalMinute).filter(isPrimaryArrival).sort((a, b) => a - b)
-    const biasedTail = biased.employees.map(({ arrivalMinute }) => arrivalMinute).filter((minute) => !isPrimaryArrival(minute))
-
-    expect(biasedPrimary).toEqual(baselinePrimary)
-    expect(biasedTail).toHaveLength(200)
-    expect(biasedTail.every(nearHour)).toBe(true)
-    expect(generateDaySchedule(settings({ floors: [{ floor: 2, employees: 1000 }], wholeHourBias: { enabled: true, share: 1 } }))).toEqual(biased)
-  })
-
   it('assigns stable IDs by ascending floor while retaining empty floors', () => {
     const schedule = generateDaySchedule(settings({
       floors: [

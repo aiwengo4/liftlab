@@ -59,12 +59,6 @@ const report = await evaluate(`(async () => {
   calculation.click(); await pause(1000)
   const employeeValueAfterReturn = inputByLabel('Сотрудников всего')?.value
   check('Возврат не сбрасывает численность', employeeValueAfterReturn === '4000' || text().includes('4000 сотрудников') || text().includes('4 000 сотрудников'), JSON.stringify({ value:employeeValueAfterReturn, url:location.href, selected:calculation.getAttribute('aria-current'), body:text().slice(0,120) }))
-  document.querySelectorAll('.top-disclosure').forEach(item => item.open = true)
-  await pause(100)
-  const peakLabel = [...document.querySelectorAll('label')].find(item => item.textContent.includes('Распределить приход/уход около целых часов'))
-  const peakToggle = peakLabel?.querySelector('input[type="checkbox"]')
-  peakToggle?.click(); await pause(100)
-  check('Пики около целых часов включаются', peakToggle?.checked === true && text().includes('Доля событий со смещением'))
   const run = [...document.querySelectorAll('button')].find(item => item.textContent.includes('Запустить расчёт'))
   run?.click()
   for (let attempt = 0; attempt < 120 && !text().includes('Результаты сценария') && !text().includes('Расчёт остановлен:'); attempt += 1) await pause(500)

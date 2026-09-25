@@ -7,7 +7,6 @@ const enabled = (globalThis as { process?: { env?: Record<string, string | undef
 const selectedCount = Number((globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env?.BENCHMARK_EMPLOYEES)
 const selectedMeetings = Number((globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env?.BENCHMARK_MEETINGS)
 const selectedElevators = Number((globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env?.BENCHMARK_ELEVATORS)
-const wholeHourBiasEnabled = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env?.BENCHMARK_HOUR_BIAS === '1'
 
 describe.skipIf(!enabled)('full-day performance benchmark', () => {
   it('measures representative default scenarios', () => {
@@ -21,7 +20,6 @@ describe.skipIf(!enabled)('full-day performance benchmark', () => {
         ...base,
         totalEmployees,
         distributionMode: 'equal',
-        wholeHourBiasEnabled,
         ...(Number.isFinite(selectedMeetings) && selectedMeetings >= 0
           ? { meanMeetingsPerEmployee: selectedMeetings }
           : {}),

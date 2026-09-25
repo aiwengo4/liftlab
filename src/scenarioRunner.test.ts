@@ -86,23 +86,6 @@ describe('runScenarioFromForm', () => {
     expect(first.metrics.counters.departedEmployees).toBe(2)
   })
 
-  it('runs a populated full day with whole-hour peaks enabled', () => {
-    const form = distributeEmployees({
-      ...createDefaultScenarioForm(),
-      seed: 20260925,
-      totalEmployees: 100,
-      distributionMode: 'equal',
-      wholeHourBiasEnabled: true,
-      wholeHourBiasShare: 0.5,
-    })
-    const result = runScenarioFromForm(form)
-
-    expect(result.metrics.counters.arrivedEmployees).toBe(100)
-    expect(result.metrics.counters.departedEmployees).toBe(100)
-    expect(result.metrics.counters.unfinishedRoutes).toBe(0)
-    expect(result.metrics.wholeDay.routeCount).toBeGreaterThan(0)
-  })
-
   it('rejects an invalid form before starting the engine', () => {
     expect(() => runScenarioFromForm(createDefaultScenarioForm())).toThrow('содержат ошибки')
   })

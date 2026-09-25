@@ -26,13 +26,7 @@ export interface DayScheduleSettings {
   readonly arrival: WeightedTimeWindow
   readonly departure: WeightedTimeWindow
   readonly arrivalInfluenceOnDeparture: number
-  readonly wholeHourBias?: WholeHourBiasSettings
   readonly undergroundParking?: UndergroundParkingSettings
-}
-
-export interface WholeHourBiasSettings {
-  readonly enabled: boolean
-  readonly share: number
 }
 
 export interface UndergroundParkingSettings {
@@ -79,15 +73,11 @@ export function generateDaySchedule(settings: DayScheduleSettings): DaySchedule 
     )
     .map((homeFloor, index) => ({ id: index + 1, homeFloor }))
 
-  const arrivals = generateWindowTimes(identities.length, settings.arrival, random,
-    settings.wholeHourBias?.enabled ? new SeededRandom((settings.seed ^ 0x61727276) >>> 0) : undefined,
-    settings.wholeHourBias?.share ?? 0)
+  const arrivals = generateWindowTimes(identities.length, settings.arrival, random)
   const departureSlots = generateWindowTimes(
     identities.length,
     settings.departure,
     random,
-    settings.wholeHourBias?.enabled ? new SeededRandom((settings.seed ^ 0x64657074) >>> 0) : undefined,
-    settings.wholeHourBias?.share ?? 0,
   ).sort((first, second) => first - second)
   const arrivalByEmployee = identities.map((identity, index) => ({
     ...identity,
@@ -134,14 +124,12 @@ function generateWindowTimes(
   count: number,
   settings: WeightedTimeWindow,
   random: SeededRandom,
-  biasRandom?: SeededRandom,
-  biasShare = 0,
 ): MinuteOfDay[] {
   const primaryCount = Math.round(count * settings.primaryShare)
   const outsideCount = count - primaryCount
   const times = [
     ...sampleRange(primaryCount, settings.primary, random),
-    ...sampleOutsidePrimary(outsideCount, settings, random, biasRandom, biasShare),
+    ...sampleOutsidePrimary(outsideCount, settings, random),
   ]
 
   shuffle(times, random)
@@ -164,8 +152,6 @@ function sampleOutsidePrimary(
   count: number,
   settings: WeightedTimeWindow,
   random: SeededRandom,
-  biasRandom?: SeededRandom,
-  biasShare = 0,
 ): MinuteOfDay[] {
   const beforeLength = settings.primary.startMinute - settings.overall.startMinute
   const afterLength = settings.overall.endMinute - settings.primary.endMinute
@@ -173,28 +159,10 @@ function sampleOutsidePrimary(
 
   return Array.from({ length: count }, () => {
     const offset = Math.floor(random.next() * totalLength)
-    const original = offset < beforeLength
+    return offset < beforeLength
       ? settings.overall.startMinute + offset
       : settings.primary.endMinute + offset - beforeLength
-    if (biasRandom === undefined || biasRandom.next() >= biasShare) return original
-    const selectedWindow = offset < beforeLength
-      ? { startMinute: settings.overall.startMinute, endMinute: settings.primary.startMinute }
-      : { startMinute: settings.primary.endMinute, endMinute: settings.overall.endMinute }
-    return sampleNearWholeHour(selectedWindow, original, biasRandom)
   })
-}
-
-function sampleNearWholeHour(window: TimeWindow, fallback: MinuteOfDay, random: SeededRandom): MinuteOfDay {
-  const firstHour = Math.ceil(window.startMinute / 60)
-  // Include the hour at the right boundary: its negative offset can still fall inside the window.
-  const lastHour = Math.floor(window.endMinute / 60)
-  if (firstHour > lastHour) return fallback
-  for (let attempt = 0; attempt < 8; attempt += 1) {
-    const hour = firstHour + Math.floor(random.next() * (lastHour - firstHour + 1))
-    const candidate = hour * 60 - 10 + Math.floor(random.next() * 16)
-    if (candidate >= window.startMinute && candidate < window.endMinute) return candidate
-  }
-  return fallback
 }
 
 function departurePriorities(
@@ -254,12 +222,6 @@ function shuffle<T>(items: T[], random: SeededRandom): void {
 
 function validateSettings(settings: DayScheduleSettings): void {
   new SeededRandom(settings.seed)
-  if (settings.wholeHourBias !== undefined && (
-    typeof settings.wholeHourBias.enabled !== 'boolean' ||
-    !Number.isFinite(settings.wholeHourBias.share) ||
-    settings.wholeHourBias.share < 0 ||
-    settings.wholeHourBias.share > 1
-  )) throw new RangeError('Доля событий около целых часов должна быть от 0 до 1')
   if (settings.undergroundParking !== undefined) {
     const parking = settings.undergroundParking
     if (typeof parking.enabled !== 'boolean') throw new RangeError('Признак паркинга должен быть логическим')

@@ -68,12 +68,15 @@ describe('scenario links', () => {
     expect(validateScenarioForm(decoded.scenario)).toEqual({})
   })
 
-  it('opens older links with whole-hour peaks disabled', () => {
-    const { wholeHourBiasEnabled: _enabled, wholeHourBiasShare: _share, ...versionFive } = createDefaultScenarioForm()
-    const encoded = btoa(JSON.stringify({ version: 5, scenario: versionFive })).replaceAll('+','-').replaceAll('/','_').replace(/=+$/u,'')
+  it('opens version 6 links after removing whole-hour peaks', () => {
+    const legacy = { ...createDefaultScenarioForm(), wholeHourBiasEnabled: true, wholeHourBiasShare: 0.5 }
+    const encoded = btoa(JSON.stringify({ version: 6, scenario: legacy })).replaceAll('+','-').replaceAll('/','_').replace(/=+$/u,'')
     const decoded = decodeScenarioHash('#settings=' + encoded)
 
-    expect(decoded.ok && decoded.scenario.wholeHourBiasEnabled).toBe(false)
-    expect(decoded.ok && decoded.scenario.wholeHourBiasShare).toBe(0.5)
+    expect(decoded.ok).toBe(true)
+    if (!decoded.ok) return
+    expect('wholeHourBiasEnabled' in decoded.scenario).toBe(false)
+    expect('wholeHourBiasShare' in decoded.scenario).toBe(false)
+    expect(decoded.migrated).toBe(true)
   })
 })

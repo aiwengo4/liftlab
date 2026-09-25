@@ -47,8 +47,6 @@ export interface ScenarioFormState {
   readonly departurePrimaryStart: number
   readonly departurePrimaryEnd: number
   readonly departurePrimaryShare: number
-  readonly wholeHourBiasEnabled: boolean
-  readonly wholeHourBiasShare: number
   readonly arrivalInfluenceOnDeparture: number
   readonly meetingStart: number
   readonly meetingEnd: number
@@ -111,8 +109,6 @@ export function createDefaultScenarioForm(): ScenarioFormState {
     departurePrimaryStart: DEFAULT_DEPARTURE_WINDOW.primary.startMinute,
     departurePrimaryEnd: DEFAULT_DEPARTURE_WINDOW.primary.endMinute,
     departurePrimaryShare: DEFAULT_DEPARTURE_WINDOW.primaryShare,
-    wholeHourBiasEnabled: false,
-    wholeHourBiasShare: 0.5,
     arrivalInfluenceOnDeparture: 0.7,
     meetingStart: 11 * 60,
     meetingEnd: 19 * 60,
@@ -219,7 +215,6 @@ export function validateScenarioForm(values: ScenarioFormState): ScenarioFormErr
   ] as const) if (!errors[key] && !hasStep(value, 0.1)) errors[key] = 'Укажите время с точностью до 0,1 секунды'
   numberRange(errors, 'arrivalPrimaryShare', values.arrivalPrimaryShare, 0, 1, 'Доля прихода должна быть от 0 до 100%')
   numberRange(errors, 'departurePrimaryShare', values.departurePrimaryShare, 0, 1, 'Доля ухода должна быть от 0 до 100%')
-  numberRange(errors, 'wholeHourBiasShare', values.wholeHourBiasShare, 0, 1, 'Доля смещённых событий должна быть от 0 до 100%')
   numberRange(errors, 'arrivalInfluenceOnDeparture', values.arrivalInfluenceOnDeparture, 0, 1, 'Влияние прихода должно быть от 0 до 100%')
   numberRange(errors, 'lunchShare', values.lunchShare, 0, 1, 'Доля обеда должна быть от 0 до 100%')
   numberRange(errors, 'meanMeetingsPerEmployee', values.meanMeetingsPerEmployee, 0, 10, 'Допустимо от 0 до 10 встреч, включая дробные значения')

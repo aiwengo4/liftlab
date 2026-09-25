@@ -1,6 +1,6 @@
 import { createDefaultScenarioForm, type ScenarioFormState } from './scenarioForm'
 
-const VERSION = 6
+const VERSION = 7
 const PREFIX = '#settings='
 const MAX_ENCODED_LENGTH = 100_000
 
@@ -36,7 +36,7 @@ export function decodeScenarioHash(hash: string): ScenarioLinkResult {
     const binary = atob(base64)
     const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0))
     const parsed: unknown = JSON.parse(new TextDecoder().decode(bytes))
-    if (!isRecord(parsed) || ![1, 2, 3, 4, 5, VERSION].includes(Number(parsed.version))) return { ok: false, reason: 'Версия ссылки не поддерживается' }
+    if (!isRecord(parsed) || ![1, 2, 3, 4, 5, 6, VERSION].includes(Number(parsed.version))) return { ok: false, reason: 'Версия ссылки не поддерживается' }
     const candidate = normalizeScenarioForm(parsed.scenario, parsed.version === 1, parsed.version !== VERSION)
     if (candidate === null) return { ok: false, reason: 'Настройки в ссылке имеют неверный формат' }
     return { ok: true, scenario: candidate, migrated: parsed.version !== VERSION }
@@ -48,7 +48,7 @@ export function decodeScenarioHash(hash: string): ScenarioLinkResult {
 export function normalizeScenarioForm(value: unknown, allowLegacyDefaults = false, allowDispatchDefault = allowLegacyDefaults): ScenarioFormState | null {
   if (!isRecord(value)) return null
   const defaults = createDefaultScenarioForm()
-  const { meetingGroupShares: _groups, ...withoutGroups } = value
+  const { meetingGroupShares: _groups, wholeHourBiasEnabled: _hourBiasEnabled, wholeHourBiasShare: _hourBiasShare, ...withoutGroups } = value
   const candidate = {
     ...withoutGroups,
     floors: Array.isArray(value.floors) ? value.floors.map((floor) => {
@@ -65,8 +65,6 @@ export function normalizeScenarioForm(value: unknown, allowLegacyDefaults = fals
     ...(typeof value.undergroundParkingEnabled !== 'boolean' ? { undergroundParkingEnabled: false } : {}),
     ...(typeof value.undergroundFloorCount !== 'number' ? { undergroundFloorCount: 1 } : {}),
     ...(typeof value.undergroundEmployeeShare !== 'number' ? { undergroundEmployeeShare: 0 } : {}),
-    ...(typeof value.wholeHourBiasEnabled !== 'boolean' ? { wholeHourBiasEnabled: false } : {}),
-    ...(typeof value.wholeHourBiasShare !== 'number' ? { wholeHourBiasShare: defaults.wholeHourBiasShare } : {}),
     ...(!Array.isArray(value.servedFloorsByElevator) ? { servedFloorsByElevator: Array.from({ length: integer(value.elevatorCount) && value.elevatorCount >= 1 && value.elevatorCount <= 20 ? value.elevatorCount : defaults.elevatorCount }, () => Array.isArray(value.floors) ? value.floors.filter((floor) => isRecord(floor) && floor.served === true).map((floor) => floor.floor as number) : defaults.floors.map(({ floor }) => floor)) } : {}),
   }
   return isScenario(candidate) ? candidate : null

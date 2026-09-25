@@ -60,7 +60,7 @@ export function normalizeScenarioForm(value: unknown, allowLegacyDefaults = fals
     ...(allowDispatchDefault && typeof value.dispatchStrategy !== 'string' ? { dispatchStrategy: 'nearest' } : {}),
     ...(typeof value.lunchDurationJitterMinutes !== 'number' ? { lunchDurationJitterMinutes: 0 } : {}),
     ...(typeof value.lunchOverloadStairsEnabled !== 'boolean' ? { lunchOverloadStairsEnabled: false } : {}),
-    ...(!Array.isArray(value.lunchOverloadStairProbabilities) ? { lunchOverloadStairProbabilities: defaults.lunchOverloadStairProbabilities } : {}),
+    lunchOverloadStairProbabilities: normalizeLunchOverloadProbabilities(value.lunchOverloadStairProbabilities, defaults.lunchOverloadStairProbabilities),
     ...(typeof value.inconvenientStairFactor !== 'number' ? { inconvenientStairFactor: defaults.inconvenientStairFactor } : {}),
     ...(typeof value.undergroundParkingEnabled !== 'boolean' ? { undergroundParkingEnabled: false } : {}),
     ...(typeof value.undergroundFloorCount !== 'number' ? { undergroundFloorCount: 1 } : {}),
@@ -90,7 +90,7 @@ function isScenario(value: unknown): value is ScenarioFormState {
   if (!integer(value.elevatorCount) || value.initialElevatorFloors.length !== value.elevatorCount || value.parkingByElevator.length !== value.elevatorCount || value.servedFloorsByElevator.length !== value.elevatorCount) return false
   if (!['manual', 'equal'].includes(String(value.distributionMode))) return false
   if (!['global-fifo', 'nearest', 'hybrid'].includes(String(value.dispatchStrategy))) return false
-  if (!arrayLength(value.meetingDurationShares, 3) || !arrayLength(value.meetingRoomFoundSharesByHour, 24) || !arrayLength(value.convenientStairProbabilities, 6) || !arrayLength(value.inconvenientStairProbabilities, 6) || !arrayLength(value.longWaitThresholds, 3)) return false
+  if (!arrayLength(value.meetingDurationShares, 3) || !arrayLength(value.meetingRoomFoundSharesByHour, 24) || !arrayLength(value.convenientStairProbabilities, 6) || !arrayLength(value.inconvenientStairProbabilities, 6) || !arrayLength(value.lunchOverloadStairProbabilities, 7) || !(value.lunchOverloadStairProbabilities as unknown[]).every(finite) || !arrayLength(value.longWaitThresholds, 3)) return false
   return Object.values(value).every((item) => typeof item !== 'number' || Number.isFinite(item))
 }
 
@@ -98,3 +98,8 @@ function isRecord(value: unknown): value is Record<string, unknown> { return typ
 function finite(value: unknown): value is number { return typeof value === 'number' && Number.isFinite(value) }
 function integer(value: unknown): value is number { return Number.isSafeInteger(value) }
 function arrayLength(value: unknown, length: number): value is unknown[] { return Array.isArray(value) && value.length === length }
+function normalizeLunchOverloadProbabilities(value: unknown, defaults: readonly number[]): readonly number[] {
+  if (!Array.isArray(value)) return defaults
+  if (value.length === 6 && value.every(finite)) return [...value, value[5]]
+  return value
+}

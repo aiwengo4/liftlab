@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createDefaultScenarioForm, distributeEmployees } from './scenarioForm'
+import { createDefaultScenarioForm, distributeEmployees, validateScenarioForm } from './scenarioForm'
 import { createScenarioUrl, decodeScenarioHash, encodeScenario } from './scenarioLink'
 import { runScenarioFromForm } from './scenarioRunner'
 
@@ -51,5 +51,20 @@ describe('scenario links', () => {
     expect(decoded.ok && decoded.scenario.dispatchStrategy).toBe('nearest')
     expect(decoded.ok && decoded.scenario.lunchDurationJitterMinutes).toBe(0)
     expect(decoded.ok && decoded.scenario.lunchOverloadStairsEnabled).toBe(false)
+  })
+
+  it('preserves custom settings and repairs links with six lunch stair values', () => {
+    const form = distributeEmployees({ ...createDefaultScenarioForm(), seed: 20260530, totalEmployees: 870, distributionMode: 'equal' })
+    const legacySix = { ...form, distributionMode: 'manual', elevatorCapacity: 13, lunchOverloadStairProbabilities: [0, 0, 0, 0, 0, 0] }
+    const encoded = btoa(JSON.stringify({ version: 5, scenario: legacySix })).replaceAll('+','-').replaceAll('/','_').replace(/=+$/u,'')
+    const decoded = decodeScenarioHash('#settings=' + encoded)
+
+    expect(decoded.ok).toBe(true)
+    if (!decoded.ok) return
+    expect(decoded.scenario.totalEmployees).toBe(870)
+    expect(decoded.scenario.floors.map((floor) => floor.employees)).toEqual(form.floors.map((floor) => floor.employees))
+    expect(decoded.scenario.elevatorCapacity).toBe(13)
+    expect(decoded.scenario.lunchOverloadStairProbabilities).toEqual([0, 0, 0, 0, 0, 0, 0])
+    expect(validateScenarioForm(decoded.scenario)).toEqual({})
   })
 })

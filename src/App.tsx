@@ -35,9 +35,20 @@ export function App() {
   }, [form])
   useEffect(() => () => workerRef.current?.terminate(), [])
   useEffect(() => {
-    const onPopState = () => setActiveView(new URLSearchParams(window.location.search).get('view') === 'methodology' ? 'methodology' : 'calculator')
+    const loadLocation = () => {
+      setActiveView(new URLSearchParams(window.location.search).get('view') === 'methodology' ? 'methodology' : 'calculator')
+      if (!window.location.hash.startsWith('#settings=')) return
+      const decoded = decodeScenarioHash(window.location.hash)
+      if (decoded.ok) {
+        setForm(decoded.scenario)
+        setLinkStatus(decoded.migrated ? 'Ссылка обновлена для текущей версии модели.' : 'Настройки загружены из ссылки.')
+      } else setLinkStatus(decoded.reason + '. Текущие настройки оставлены без изменений.')
+    }
+    const onPopState = () => loadLocation()
+    const onHashChange = () => loadLocation()
     window.addEventListener('popstate', onPopState)
-    return () => window.removeEventListener('popstate', onPopState)
+    window.addEventListener('hashchange', onHashChange)
+    return () => { window.removeEventListener('popstate', onPopState); window.removeEventListener('hashchange', onHashChange) }
   }, [])
   const update = (patch: Partial<ScenarioFormState>, redistribute = false) => setForm((current) => {
     const next = { ...current, ...patch }

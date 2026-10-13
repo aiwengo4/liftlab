@@ -6,8 +6,21 @@ import { reportFingerprint, SIMULATION_MODEL_VERSION, trafficFingerprint } from 
 export const SAVED_SCENARIOS_KEY = 'liftlab.saved-scenarios.v1'
 export const MAX_SAVED_SCENARIOS = 20
 
+export interface ComparisonTimeSlice {
+  routeCount: number
+  waitingMeanSeconds: number | null
+  waitingMedianSeconds: number | null
+  waitingP90Seconds: number | null
+  ridingMeanSeconds: number | null
+  ridingMedianSeconds: number | null
+  ridingP90Seconds: number | null
+  totalMeanSeconds: number | null
+  totalMedianSeconds: number | null
+  totalP90Seconds: number | null
+}
+
 export interface ScenarioSnapshot {
-  snapshotVersion: 3
+  snapshotVersion: 4
   simulationModelVersion: string
   trafficFingerprint: string
   reportFingerprint: string
@@ -18,6 +31,13 @@ export interface ScenarioSnapshot {
   totalMedianSeconds: number | null
   maximumQueue: number
   emptyFloorsTravelled: number
+  periodSlices: {
+    wholeDay: ComparisonTimeSlice
+    morning: ComparisonTimeSlice
+    day: ComparisonTimeSlice
+    evening: ComparisonTimeSlice
+  } | null
+  hourlySlices: readonly ComparisonTimeSlice[] | null
 }
 export interface SavedScenario {
   id: string
@@ -34,7 +54,7 @@ interface StoreEnvelope { version: 1; items: readonly SavedScenario[] }
 export function snapshotResult(result: BrowserSimulationResult | null, form: ScenarioFormState): ScenarioSnapshot | null {
   if (!result) return null
   return {
-    snapshotVersion: 3,
+    snapshotVersion: 4,
     simulationModelVersion: SIMULATION_MODEL_VERSION,
     trafficFingerprint: trafficFingerprint(form),
     reportFingerprint: reportFingerprint(form),
@@ -45,6 +65,13 @@ export function snapshotResult(result: BrowserSimulationResult | null, form: Sce
     totalMedianSeconds: result.metrics.wholeDay.total.medianSeconds,
     maximumQueue: result.operationalMetrics.queue.maximumWaitingInBuilding,
     emptyFloorsTravelled: result.operationalMetrics.group.resource.emptyFloorsTravelled,
+    periodSlices: {
+      wholeDay: comparisonSlice(result.metrics.wholeDay),
+      morning: comparisonSlice(result.metrics.morning),
+      day: comparisonSlice(result.metrics.day),
+      evening: comparisonSlice(result.metrics.evening),
+    },
+    hourlySlices: result.metrics.hours.map(comparisonSlice),
   }
 }
 
@@ -119,14 +146,36 @@ function isSavedScenario(value: unknown): value is SavedScenario {
   return value.snapshot === null || isSnapshot(value.snapshot)
 }
 function isSnapshot(value: unknown): value is ScenarioSnapshot {
-  if (!record(value) || value.snapshotVersion !== 3 || value.simulationModelVersion !== SIMULATION_MODEL_VERSION || typeof value.trafficFingerprint !== 'string' || typeof value.reportFingerprint !== 'string') return false
-  return nullable(value.waitingMeanSeconds) && nullable(value.waitingMedianSeconds) && nullable(value.waitingP90Seconds) && nullable(value.totalMeanSeconds) && nullable(value.totalMedianSeconds) && finite(value.maximumQueue) && finite(value.emptyFloorsTravelled)
+  if (!record(value) || value.snapshotVersion !== 4 || value.simulationModelVersion !== SIMULATION_MODEL_VERSION || typeof value.trafficFingerprint !== 'string' || typeof value.reportFingerprint !== 'string') return false
+  const periods = value.periodSlices
+  const validPeriods = periods === null || (record(periods) && ['wholeDay','morning','day','evening'].every((key) => isComparisonSlice(periods[key])))
+  const validHours = value.hourlySlices === null || (Array.isArray(value.hourlySlices) && value.hourlySlices.length === 24 && value.hourlySlices.every(isComparisonSlice))
+  return nullable(value.waitingMeanSeconds) && nullable(value.waitingMedianSeconds) && nullable(value.waitingP90Seconds) && nullable(value.totalMeanSeconds) && nullable(value.totalMedianSeconds) && finite(value.maximumQueue) && finite(value.emptyFloorsTravelled) && validPeriods && validHours
 }
 function normalizeSnapshot(value: unknown): ScenarioSnapshot | null {
   if (isSnapshot(value)) return value
-  if (!record(value) || value.snapshotVersion !== 2 || value.simulationModelVersion !== SIMULATION_MODEL_VERSION || typeof value.trafficFingerprint !== 'string' || typeof value.reportFingerprint !== 'string') return null
+  if (!record(value) || ![2,3].includes(Number(value.snapshotVersion)) || value.simulationModelVersion !== SIMULATION_MODEL_VERSION || typeof value.trafficFingerprint !== 'string' || typeof value.reportFingerprint !== 'string') return null
   if (!nullable(value.waitingMeanSeconds) || !nullable(value.waitingP90Seconds) || !nullable(value.totalMeanSeconds) || !finite(value.maximumQueue) || !finite(value.emptyFloorsTravelled)) return null
-  return { ...value, snapshotVersion: 3, waitingMedianSeconds: null, totalMedianSeconds: null } as ScenarioSnapshot
+  if (value.snapshotVersion === 3 && (!nullable(value.waitingMedianSeconds) || !nullable(value.totalMedianSeconds))) return null
+  return { ...value, snapshotVersion: 4, waitingMedianSeconds: value.snapshotVersion === 2 ? null : value.waitingMedianSeconds, totalMedianSeconds: value.snapshotVersion === 2 ? null : value.totalMedianSeconds, periodSlices: null, hourlySlices: null } as ScenarioSnapshot
+}
+function comparisonSlice(slice: BrowserSimulationResult['metrics']['wholeDay']): ComparisonTimeSlice {
+  return {
+    routeCount: slice.routeCount,
+    waitingMeanSeconds: slice.waiting.meanSeconds,
+    waitingMedianSeconds: slice.waiting.medianSeconds,
+    waitingP90Seconds: slice.waiting.p90Seconds,
+    ridingMeanSeconds: slice.riding.meanSeconds,
+    ridingMedianSeconds: slice.riding.medianSeconds,
+    ridingP90Seconds: slice.riding.p90Seconds,
+    totalMeanSeconds: slice.total.meanSeconds,
+    totalMedianSeconds: slice.total.medianSeconds,
+    totalP90Seconds: slice.total.p90Seconds,
+  }
+}
+function isComparisonSlice(value: unknown): value is ComparisonTimeSlice {
+  if (!record(value) || !Number.isSafeInteger(value.routeCount) || (value.routeCount as number) < 0) return false
+  return ['waitingMeanSeconds','waitingMedianSeconds','waitingP90Seconds','ridingMeanSeconds','ridingMedianSeconds','ridingP90Seconds','totalMeanSeconds','totalMedianSeconds','totalP90Seconds'].every((key) => nullable(value[key]))
 }
 function record(value: unknown): value is Record<string, unknown> { return typeof value === 'object' && value !== null && !Array.isArray(value) }
 function finite(value: unknown): value is number { return typeof value === 'number' && Number.isFinite(value) }

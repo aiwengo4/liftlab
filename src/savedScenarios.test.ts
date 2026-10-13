@@ -49,14 +49,22 @@ describe('saved scenarios', () => {
     const [loaded] = loadSavedScenarios(memory(JSON.stringify({ version: 1, items: [{ ...item, snapshot: staleSnapshot }] })))
     expect(loaded).toMatchObject({ snapshot: null, snapshotNeedsUpgrade: true })
   })
-  it('keeps version 2 results and marks unavailable medians as empty', () => {
+  it('keeps version 2 results and marks unavailable detailed metrics as empty', () => {
     const form = createDefaultScenarioForm()
     const item = makeSavedScenario(form, null, 'Old result', '', 'old-result', 'now')
     const snapshot = { snapshotVersion: 2, simulationModelVersion: SIMULATION_MODEL_VERSION, trafficFingerprint: trafficFingerprint(form), reportFingerprint: reportFingerprint(form), waitingMeanSeconds: 10, waitingP90Seconds: 30, totalMeanSeconds: 40, maximumQueue: 5, emptyFloorsTravelled: 6 }
     const [loaded] = loadSavedScenarios(memory(JSON.stringify({ version: 1, items: [{ ...item, snapshot }] })))
 
-    expect(loaded.snapshot).toMatchObject({ snapshotVersion: 3, waitingMedianSeconds: null, totalMedianSeconds: null })
+    expect(loaded.snapshot).toMatchObject({ snapshotVersion: 4, waitingMedianSeconds: null, totalMedianSeconds: null, periodSlices: null, hourlySlices: null })
     expect(loaded.snapshotNeedsUpgrade).toBeUndefined()
+  })
+  it('migrates version 3 results without inventing period or hourly values', () => {
+    const form = createDefaultScenarioForm()
+    const item = makeSavedScenario(form, null, 'Old detailed result', '', 'old-detailed', 'now')
+    const snapshot = { snapshotVersion: 3, simulationModelVersion: SIMULATION_MODEL_VERSION, trafficFingerprint: trafficFingerprint(form), reportFingerprint: reportFingerprint(form), waitingMeanSeconds: 10, waitingMedianSeconds: 9, waitingP90Seconds: 30, totalMeanSeconds: 40, totalMedianSeconds: 35, maximumQueue: 5, emptyFloorsTravelled: 6 }
+    const [loaded] = loadSavedScenarios(memory(JSON.stringify({ version: 1, items: [{ ...item, snapshot }] })))
+
+    expect(loaded.snapshot).toMatchObject({ snapshotVersion: 4, waitingMedianSeconds: 9, totalMedianSeconds: 35, periodSlices: null, hourlySlices: null })
   })
   it('enforces names, comments and the maximum collection size', () => {
     expect(() => makeSavedScenario(createDefaultScenarioForm(), null, ' ', '', 'x', 'now')).toThrow('Название')

@@ -100,6 +100,12 @@
   font-size: .82rem;
 }
 
+.parking-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .secondary-button,
 .remove-button {
   min-height: 42px;

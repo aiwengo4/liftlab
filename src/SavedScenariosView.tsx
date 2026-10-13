@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { BrowserSimulationResult } from './browserResult'
 import { dispatchStrategyLabel, type ScenarioFormState } from './scenarioForm'
-import { compareMetric, comparisonCompatibility, loadSavedScenarios, makeSavedScenario, MAX_SAVED_SCENARIOS, persistSavedScenarios, type SavedScenario, type ScenarioSnapshot } from './savedScenarios'
+import { compareMetric, comparisonCompatibility, loadSavedScenarios, makeSavedScenario, MAX_SAVED_SCENARIOS, persistSavedScenarios, type ComparisonTimeSlice, type SavedScenario, type ScenarioSnapshot } from './savedScenarios'
 
 export function SavedScenariosView({ form, result, onOpen, onShare }: { form: ScenarioFormState; result: BrowserSimulationResult | null; onOpen: (item: SavedScenario) => void; onShare: (form: ScenarioFormState) => Promise<void> }) {
   const [items,setItems]=useState(() => loadSavedScenarios(localStorage))
@@ -52,12 +52,49 @@ export function SavedScenariosView({ form, result, onOpen, onShare }: { form: Sc
 }
 
 type ComparisonMetricKey='waitingMeanSeconds'|'waitingMedianSeconds'|'waitingP90Seconds'|'totalMeanSeconds'|'totalMedianSeconds'|'maximumQueue'|'emptyFloorsTravelled'
+type TimeMetricKey=Exclude<keyof ComparisonTimeSlice,'routeCount'>
+type ComparisonView='wholeDay'|'morning'|'day'|'evening'|'hourly'
+const periodLabels:Record<ComparisonView,string>={wholeDay:'Итого',morning:'Утро',day:'День',evening:'Вечер',hourly:'По часам'}
+const hourlyMetrics:readonly [string,TimeMetricKey|'routeCount','time'|'count'][]=[
+  ['Количество маршрутов','routeCount','count'],
+  ['Ожидание — среднее','waitingMeanSeconds','time'],['Ожидание — медиана','waitingMedianSeconds','time'],['Ожидание — P90','waitingP90Seconds','time'],
+  ['Поездка — среднее','ridingMeanSeconds','time'],['Поездка — медиана','ridingMedianSeconds','time'],['Поездка — P90','ridingP90Seconds','time'],
+  ['Полный маршрут — среднее','totalMeanSeconds','time'],['Полный маршрут — медиана','totalMedianSeconds','time'],['Полный маршрут — P90','totalP90Seconds','time'],
+]
 function Comparison({items,onBaseline}:{items:SavedScenario[];onBaseline:(id:string)=>void}) {
+  const [view,setView]=useState<ComparisonView>('wholeDay')
+  const [hourlyMetric,setHourlyMetric]=useState<TimeMetricKey|'routeCount'>('waitingMeanSeconds')
   const baseline=items[0]
   const rows:[string,ComparisonMetricKey,'time'|'count'|'floors'][]=[['Среднее ожидание','waitingMeanSeconds','time'],['Медиана ожидания','waitingMedianSeconds','time'],['P90 ожидания','waitingP90Seconds','time'],['Среднее полного маршрута','totalMeanSeconds','time'],['Медиана полного маршрута','totalMedianSeconds','time'],['Максимальная очередь','maximumQueue','count'],['Пустой пробег','emptyFloorsTravelled','floors']]
+  const periodRows:[string,TimeMetricKey,'time'][]=[['Среднее ожидание','waitingMeanSeconds','time'],['Медиана ожидания','waitingMedianSeconds','time'],['P90 ожидания','waitingP90Seconds','time'],['Среднее полного маршрута','totalMeanSeconds','time'],['Медиана полного маршрута','totalMedianSeconds','time']]
   const compatibility=new Map(items.slice(1).map((item)=>[item.id,comparisonCompatibility(baseline,item)]))
   const reasons=[...new Set([...compatibility.values()].flatMap((item)=>item.reasons))]
-  return <section className="comparison" aria-labelledby="comparison-title"><header><div><h3 id="comparison-title">Сравнение</h3><p>Базовый сценарий: «{baseline.name}». Меньше — лучше для всех показателей.</p></div><span>{items.length} сценария выбрано</span></header>{reasons.length>0&&<div className="warning" role="status"><strong>Условия потока различаются.</strong> {reasons.join('. ')}. Для отмеченных сценариев значения показаны справочно без вывода «лучше/хуже».</div>}<p className="table-swipe">На узком экране проведите таблицу в сторону.</p><div className="result-table-scroll" tabIndex={0} role="region" aria-label="Сравнение сохранённых сценариев"><table className="result-table comparison-table"><caption className="sr-only">Сравнение сохранённых сценариев с базовым</caption><thead><tr><th>Показатель</th>{items.map((item,index)=><th key={item.id}>{item.name}{index===0?<small>База</small>:<>{!compatibility.get(item.id)?.paired&&<small>Поток отличается</small>}<button type="button" onClick={()=>onBaseline(item.id)}>Сделать базовым</button></>}</th>)}</tr></thead><tbody>{rows.map(([label,key,kind])=><tr key={key}><th scope="row">{label}</th>{items.map((item,index)=>{const value=item.snapshot?.[key]??null;if(index===0)return <td key={item.id}><strong>{formatValue(value,kind)}</strong><small>Базовое значение</small></td>;const compatible=compatibility.get(item.id)?.paired??false;const compared=compareMetric(value,baseline.snapshot?.[key]??null,compatible);return <td key={item.id}><strong>{formatValue(value,kind)}</strong><small className={`comparison-${compared.verdict}`}>{formatComparison(compared,kind)}</small></td>})}</tr>)}</tbody></table></div></section>
+  const selectedHourly=hourlyMetrics.find(([,key])=>key===hourlyMetric)??hourlyMetrics[1]
+  const visibleHours=Array.from({length:24},(_,hour)=>hour).filter((hour)=>items.some((item)=>(item.snapshot?.hourlySlices?.[hour]?.routeCount??0)>0))
+  const periodUnavailable=view!=='wholeDay'&&view!=='hourly'&&items.some((item)=>item.snapshot?.periodSlices===null)
+  const hourlyUnavailable=view==='hourly'&&items.some((item)=>item.snapshot?.hourlySlices===null)
+  const periodReportsDiffer=view!=='wholeDay'&&view!=='hourly'&&[...compatibility.values()].some((item)=>item.reportsDiffer)
+  return <section className="comparison" aria-labelledby="comparison-title"><header><div><h3 id="comparison-title">Сравнение</h3><p>Базовый сценарий: «{baseline.name}». Меньше — лучше для временных и эксплуатационных показателей.</p></div><span>{items.length} сценария выбрано</span></header>
+    {reasons.length>0&&<div className="warning" role="status"><strong>Условия потока различаются.</strong> {reasons.join('. ')}. Для отмеченных сценариев значения показаны справочно без вывода «лучше/хуже».</div>}
+    <div className="comparison-controls"><div className="comparison-tabs" role="tablist" aria-label="Период сравнения">{(['wholeDay','morning','day','evening','hourly'] as const).map((key)=><button type="button" role="tab" aria-selected={view===key} key={key} onClick={()=>setView(key)}>{periodLabels[key]}</button>)}</div>{view==='hourly'&&<label className="comparison-metric-select"><span>Показатель</span><select value={hourlyMetric} onChange={(event)=>setHourlyMetric(event.target.value as TimeMetricKey|'routeCount')}>{hourlyMetrics.map(([label,key])=><option key={key} value={key}>{label}</option>)}</select></label>}</div>
+    {(periodUnavailable||hourlyUnavailable)&&<div className="warning" role="status">У части сохранений нет детализации для этого режима. Откройте, пересчитайте и сохраните их заново.</div>}
+    {periodReportsDiffer&&<div className="warning" role="status">Границы утреннего, дневного или вечернего периода различаются. Значения показаны справочно без вывода «лучше/хуже».</div>}
+    <p className="table-swipe">На узком экране проведите таблицу в сторону.</p>
+    {view==='hourly'
+      ? <HourlyComparison items={items} hours={visibleHours} metric={hourlyMetric} kind={selectedHourly[2]} onBaseline={onBaseline} compatibility={compatibility}/>
+      : <MetricComparisonTable items={items} baseline={baseline} rows={view==='wholeDay'?rows:periodRows} view={view} onBaseline={onBaseline} compatibility={compatibility}/>
+    }
+  </section>
+}
+function MetricComparisonTable({items,baseline,rows,view,onBaseline,compatibility}:{items:SavedScenario[];baseline:SavedScenario;rows:readonly [string,ComparisonMetricKey|TimeMetricKey,'time'|'count'|'floors'][];view:Exclude<ComparisonView,'hourly'>;onBaseline:(id:string)=>void;compatibility:Map<string,ReturnType<typeof comparisonCompatibility>>}) {
+  const value=(item:SavedScenario,key:ComparisonMetricKey|TimeMetricKey):number|null => view==='wholeDay' ? (item.snapshot?.[key as ComparisonMetricKey]??null) : (item.snapshot?.periodSlices?.[view]?.[key as TimeMetricKey]??null)
+  return <div className="result-table-scroll" tabIndex={0} role="region" aria-label={`Сравнение сценариев: ${periodLabels[view].toLowerCase()}`}><table className="result-table comparison-table"><caption className="sr-only">Сравнение сохранённых сценариев: {periodLabels[view].toLowerCase()}</caption><ComparisonHead items={items} onBaseline={onBaseline} compatibility={compatibility}/><tbody>{rows.map(([label,key,kind])=><tr key={key}><th scope="row">{label}</th>{items.map((item,index)=>{const current=value(item,key);if(index===0)return <td key={item.id}><strong>{formatValue(current,kind)}</strong><small>Базовое значение</small></td>;const status=compatibility.get(item.id);const allowVerdict=(status?.paired??false)&&(view==='wholeDay'||status?.reportsDiffer===false);const compared=compareMetric(current,value(baseline,key),allowVerdict);return <td key={item.id}><strong>{formatValue(current,kind)}</strong><small className={`comparison-${compared.verdict}`}>{formatComparison(compared,kind)}</small></td>})}</tr>)}</tbody></table></div>
+}
+function HourlyComparison({items,hours,metric,kind,onBaseline,compatibility}:{items:SavedScenario[];hours:number[];metric:TimeMetricKey|'routeCount';kind:'time'|'count';onBaseline:(id:string)=>void;compatibility:Map<string,ReturnType<typeof comparisonCompatibility>>}) {
+  return <div className="result-table-scroll" tabIndex={0} role="region" aria-label="Почасовое сравнение сценариев"><table className="result-table comparison-table hourly-comparison-table"><caption className="sr-only">Почасовое сравнение сохранённых сценариев</caption><ComparisonHead items={items} onBaseline={onBaseline} compatibility={compatibility} firstColumn="Час"/><tbody>{hours.length===0?<tr><td colSpan={items.length+1}>Нет почасовых данных. Пересчитайте и сохраните выбранные сценарии.</td></tr>:hours.map((hour)=><tr key={hour}><th scope="row">{String(hour).padStart(2,'0')}:00</th>{items.map((item)=><td key={item.id}><strong>{formatValue(item.snapshot?.hourlySlices?.[hour]?.[metric]??null,kind)}</strong></td>)}</tr>)}</tbody></table></div>
+}
+function ComparisonHead({items,onBaseline,compatibility,firstColumn='Показатель'}:{items:SavedScenario[];onBaseline:(id:string)=>void;compatibility:Map<string,ReturnType<typeof comparisonCompatibility>>;firstColumn?:string}) {
+  return <thead><tr><th>{firstColumn}</th>{items.map((item,index)=><th key={item.id}>{item.name}{index===0?<small>База</small>:<>{!compatibility.get(item.id)?.paired&&<small>Поток отличается</small>}<button type="button" onClick={()=>onBaseline(item.id)}>Сделать базовым</button></>}</th>)}</tr></thead>
 }
 function formatValue(value:number|null,kind:string):string { if(value===null)return 'Нет данных'; if(kind==='time')return duration(value); if(kind==='floors')return Number(value.toFixed(1))+' эт.'; return value+' чел.' }
 function duration(value:number|null):string { if(value===null)return '—'; const seconds=Math.round(value); return seconds<60?seconds+' с':Math.floor(seconds/60)+' мин '+seconds%60+' с' }

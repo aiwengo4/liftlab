@@ -79,4 +79,20 @@ describe('scenario links', () => {
     expect('wholeHourBiasShare' in decoded.scenario).toBe(false)
     expect(decoded.migrated).toBe(true)
   })
+
+  it('repairs an unavailable parking floor when opening a shared link', () => {
+    const current = createDefaultScenarioForm()
+    const form = {
+      ...current,
+      servedFloorsByElevator: [[1, 3, 5, 7], current.servedFloorsByElevator[1]],
+      parkingByElevator: [
+        { enabled: true, timeoutSeconds: 0, intervals: [{ startMinute: 1020, endMinute: 1260, floor: 6 }] },
+        current.parkingByElevator[1],
+      ],
+    }
+
+    const decoded = decodeScenarioHash('#settings=' + encodeScenario(form))
+
+    expect(decoded.ok && decoded.scenario.parkingByElevator[0].intervals[0].floor).toBe(5)
+  })
 })

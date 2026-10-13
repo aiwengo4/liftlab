@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createDefaultScenarioForm, distributeEmployees, resizeElevators, resizeFloors, validateScenarioForm } from './scenarioForm'
+import { createDefaultScenarioForm, distributeEmployees, nearestAvailableFloor, repairUnavailableParkingFloors, resizeElevators, resizeFloors, validateScenarioForm } from './scenarioForm'
 import { runScenarioFromForm } from './scenarioRunner'
 
 describe('scenario form model', () => {
@@ -159,5 +159,22 @@ describe('scenario form model', () => {
     expect(validateScenarioForm(values).inconvenientStairProbabilities).toBeUndefined()
     expect(validateScenarioForm(values).lunchOverloadStairProbabilities).toBeUndefined()
     expect(() => runScenarioFromForm(values)).not.toThrow()
+  })
+
+  it('moves an unavailable parking floor to the nearest elevator stop', () => {
+    const base = createDefaultScenarioForm()
+    const values = {
+      ...base,
+      servedFloorsByElevator: [[1, 3, 5, 7], base.servedFloorsByElevator[1]],
+      parkingByElevator: [
+        { enabled: true, timeoutSeconds: 0, intervals: [{ startMinute: 1020, endMinute: 1260, floor: 6 }] },
+        base.parkingByElevator[1],
+      ],
+    }
+
+    const repaired = repairUnavailableParkingFloors(values)
+
+    expect(nearestAvailableFloor(6, [1, 3, 5, 7])).toBe(5)
+    expect(repaired.parkingByElevator[0].intervals[0].floor).toBe(5)
   })
 })

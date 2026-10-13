@@ -1,4 +1,4 @@
-import { createDefaultScenarioForm, type ScenarioFormState } from './scenarioForm'
+import { createDefaultScenarioForm, repairUnavailableParkingFloors, type ScenarioFormState } from './scenarioForm'
 
 const VERSION = 7
 const PREFIX = '#settings='
@@ -67,7 +67,7 @@ export function normalizeScenarioForm(value: unknown, allowLegacyDefaults = fals
     ...(typeof value.undergroundEmployeeShare !== 'number' ? { undergroundEmployeeShare: 0 } : {}),
     ...(!Array.isArray(value.servedFloorsByElevator) ? { servedFloorsByElevator: Array.from({ length: integer(value.elevatorCount) && value.elevatorCount >= 1 && value.elevatorCount <= 20 ? value.elevatorCount : defaults.elevatorCount }, () => Array.isArray(value.floors) ? value.floors.filter((floor) => isRecord(floor) && floor.served === true).map((floor) => floor.floor as number) : defaults.floors.map(({ floor }) => floor)) } : {}),
   }
-  return isScenario(candidate) ? candidate : null
+  return isScenario(candidate) ? repairUnavailableParkingFloors(candidate) : null
 }
 
 function isScenario(value: unknown): value is ScenarioFormState {

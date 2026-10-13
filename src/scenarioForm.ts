@@ -154,9 +154,9 @@ export function resizeFloors(values: ScenarioFormState, floorCount: number): Sce
       const added = createFloorNumbers(floorCount).filter((floor) => floor > values.floorCount)
       return [...new Set([...retained, ...added, 1])].sort((a, b) => a - b)
     }),
-    parkingByElevator: values.parkingByElevator.map((parking) => ({ ...parking, intervals: parking.intervals.map((interval) => ({ ...interval, floor: interval.floor > floorCount ? 1 : interval.floor })) })),
+    parkingByElevator: values.parkingByElevator,
   }
-  return next.distributionMode === 'equal' ? distributeEmployees(next) : next
+  return repairUnavailableParkingFloors(next.distributionMode === 'equal' ? distributeEmployees(next) : next)
 }
 
 export function resizeElevators(values: ScenarioFormState, elevatorCount: number): ScenarioFormState {
@@ -168,6 +168,24 @@ export function resizeElevators(values: ScenarioFormState, elevatorCount: number
     servedFloorsByElevator: Array.from({ length: elevatorCount }, (_, index) => values.servedFloorsByElevator[index] ?? availableFloors(values)),
     parkingByElevator: Array.from({ length: elevatorCount }, (_, index) => values.parkingByElevator[index] ?? defaultParking()),
   }
+}
+
+export function repairUnavailableParkingFloors(values: ScenarioFormState): ScenarioFormState {
+  const parkingByElevator = values.parkingByElevator.map((parking, elevatorIndex) => {
+    const available = values.servedFloorsByElevator[elevatorIndex] ?? []
+    return {
+      ...parking,
+      intervals: parking.intervals.map((interval) => available.includes(interval.floor)
+        ? interval
+        : { ...interval, floor: nearestAvailableFloor(interval.floor, available) }),
+    }
+  })
+  return { ...values, parkingByElevator }
+}
+
+export function nearestAvailableFloor(target: number, available: readonly number[]): number {
+  if (available.length === 0) return target
+  return [...available].sort((first, second) => Math.abs(first - target) - Math.abs(second - target) || first - second)[0]
 }
 
 export function distributeEmployees(values: ScenarioFormState): ScenarioFormState {

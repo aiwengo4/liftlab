@@ -1,6 +1,6 @@
 ---
 title: Технический стек и архитектура
-updated: 2026-09-15
+updated: 2026-10-13
 status: active
 ---
 
@@ -29,9 +29,9 @@ App.tsx / ScenarioForm
 | Запуск | `simulation.worker.ts`, `scenarioRunner.ts` — фоновый полный день |
 | Ядро | `src/engine/` — события, диспетчер, маршруты, расписания и метрики |
 | Результат | `browserResult.ts`, `ResultsView.tsx` — компактный контракт и визуализация |
-| Ссылки | `scenarioLink.ts` — версия и `#settings=` |
-| Сохранение | `savedScenarios.ts`, `SavedScenariosView.tsx` — до 20 записей в `localStorage` |
-| Сравнение | `scenarioComparison.ts` — совместимость и дельты 2–3 вариантов |
+| Ссылки | `scenarioLink.ts` — схема версии 7 и `#settings=`; поддерживаемые старые ссылки мигрируют при чтении |
+| Сохранение | `savedScenarios.ts`, `SavedScenariosView.tsx` — до 20 записей в `localStorage`, снимок результата версии 4 с итоговыми, периодными и почасовыми агрегатами |
+| Сравнение | `scenarioComparison.ts` — совместимость и дельты 2–3 вариантов; срезы «Итого / Утро / День / Вечер / По часам» |
 | Методика | `MethodologyView.tsx` — пользовательское описание формул и правил |
 
 ## Действующие возможности ядра

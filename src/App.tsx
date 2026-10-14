@@ -190,7 +190,7 @@ export function App() {
             <NumberField label="Ожидание с открытыми дверями" suffix="сек." value={form.openDoorDwellSeconds} min={0} max={60} step={0.1} error={submitted ? errors.openDoorDwellSeconds : undefined} onChange={(openDoorDwellSeconds) => update({ openDoorDwellSeconds })} />
             <NumberField label="Посадка или высадка пассажира" suffix="сек." value={form.passengerTransferSeconds} min={0} max={5} step={0.1} error={submitted ? errors.passengerTransferSeconds : undefined} onChange={(passengerTransferSeconds) => update({ passengerTransferSeconds })} />
           </div></details>
-          {groupedPreview && <><ParkingSettings form={form} errors={errors} submitted={submitted} servedFloors={servedFloors} update={update} />{hasParkingErrors && <p className="field-error section-visible-error" role="alert">Проверьте периоды, этажи и время ожидания в настройках парковки лифтов.</p>}<MaintenanceSettings form={form} errors={errors} submitted={submitted} update={update} /></>}
+          {groupedPreview && <><ParkingSettings form={form} errors={errors} submitted={submitted} servedFloors={servedFloors} update={update} /><MaintenanceSettings form={form} errors={errors} submitted={submitted} update={update} />{hasParkingErrors && <p className="field-error section-visible-error" role="alert">Проверьте периоды, этажи и время ожидания в настройках парковки лифтов.</p>}</>}
         </details>
 
         <details className="section-card top-disclosure" id="settings-schedule">

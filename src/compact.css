@@ -145,8 +145,9 @@
 .settings-toc span { font-size:.72rem; font-weight:750; }
 .top-disclosure[id], #settings-report { scroll-margin-top:18px; }
 @media (max-width:1339px) { .settings-toc { display:none; } }
-.page.grouped-layout details:has(> .parking-list:not(:has(.maintenance-interval))) > summary > span:first-child { font-size:0; }
-.page.grouped-layout details:has(> .parking-list:not(:has(.maintenance-interval))) > summary > span:first-child::after { content:'Парковка лифтов по расписанию'; font-size:.9rem; }
+.page.grouped-layout details:has(> .parking-list) > summary > span:first-child { font-size:0; }
+.page.grouped-layout details:has(> .parking-list) > summary > span:first-child::after { content:'Парковка лифтов по расписанию'; font-size:.9rem; }
+.page.grouped-layout details:has(> .parking-list) + details:has(> .parking-list) > summary > span:first-child::after { content:'Недоступность лифтов по расписанию'; }
 .page.grouped-layout .top-disclosure:has(.field-error) > summary::before { content:'Есть ошибка'; order:3; margin-left:auto; padding:3px 7px; border-radius:999px; background:#fff0ed; color:#a33a2a; font-size:.66rem; font-weight:700; }
 .page.grouped-layout .top-disclosure:has(.field-error) > summary::after { margin-left:0; }
 .report-preview-warning { margin:8px 0; }

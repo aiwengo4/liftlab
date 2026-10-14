@@ -89,6 +89,14 @@ describe('scenario form model', () => {
     expect(validateScenarioForm(overlap)['parking-0']).toContain('пересекаются')
   })
 
+  it('keeps repairs off by default and validates overlapping intervals', () => {
+    const initial = createDefaultScenarioForm()
+    expect(initial.maintenanceByElevator.every((item) => !item.enabled)).toBe(true)
+    const invalid = { ...initial, maintenanceByElevator: initial.maintenanceByElevator.map((item,index) => index === 0 ? { enabled: true, intervals: [{ startMinute: 0, endMinute: 120 }, { startMinute: 60, endMinute: 180 }] } : item) }
+    expect(validateScenarioForm(invalid)['maintenance-0']).toContain('пересекаются')
+    expect(resizeElevators(initial, 4).maintenanceByElevator).toHaveLength(4)
+  })
+
   it('validates every editable numeric boundary and blocks calculation', () => {
     const base = distributeEmployees({ ...createDefaultScenarioForm(), totalEmployees: 10, distributionMode: 'equal' })
     const cases: Array<[string, typeof base]> = [

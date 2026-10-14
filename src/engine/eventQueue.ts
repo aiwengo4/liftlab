@@ -1,6 +1,7 @@
 import type { SimulationEvent, SimulationEventKind } from './domain'
 
 const EVENT_PRIORITY: Readonly<Record<SimulationEventKind, number>> = {
+  'maintenance-rule-boundary': 0,
   'elevator-doors-opened': 1,
   'passenger-exited': 2,
   'stairs-segment-completed': 2,

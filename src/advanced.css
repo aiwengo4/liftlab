@@ -91,6 +91,10 @@
   background: var(--surface-soft, #f5f7f4);
 }
 
+.parking-interval.maintenance-interval {
+  grid-template-columns: minmax(150px, 1fr) minmax(150px, 1fr) auto;
+}
+
 .parking-empty {
   margin: 0;
   padding: 12px;

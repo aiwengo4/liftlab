@@ -80,6 +80,16 @@ describe('scenario links', () => {
     expect(decoded.migrated).toBe(true)
   })
 
+  it('opens version 7 links with repair schedules disabled', () => {
+    const { maintenanceByElevator: _maintenance, ...legacy } = createDefaultScenarioForm()
+    const encoded = btoa(JSON.stringify({ version: 7, scenario: legacy })).replaceAll('+','-').replaceAll('/','_').replace(/=+$/u,'')
+    const decoded = decodeScenarioHash('#settings=' + encoded)
+    expect(decoded.ok).toBe(true)
+    if (!decoded.ok) return
+    expect(decoded.scenario.maintenanceByElevator).toHaveLength(decoded.scenario.elevatorCount)
+    expect(decoded.scenario.maintenanceByElevator.every((item) => !item.enabled)).toBe(true)
+  })
+
   it('repairs an unavailable parking floor when opening a shared link', () => {
     const current = createDefaultScenarioForm()
     const form = {

@@ -1,4 +1,4 @@
-import { BaselineDispatcher, type ElevatorParkingSettings, type ElevatorServedFloors } from './dispatcher'
+import { BaselineDispatcher, type ElevatorMaintenanceSettings, type ElevatorParkingSettings, type ElevatorServedFloors } from './dispatcher'
 import { floorDistance, type EmployeeId, type Floor, type HallCall, type SimulationEvent, type TravelDirection } from './domain'
 import type { SimulationState } from './state'
 import type { DispatchStrategy } from './dispatcher'
@@ -33,7 +33,7 @@ export interface JourneyTrace {
   readonly actualStartAt: SimulationTick
   readonly fromFloor: Floor
   readonly targetFloor: Floor
-  readonly choice: RouteChoice
+  choice: RouteChoice
   readonly selectedChoice: RouteChoice
   boardedAt: SimulationTick | null
   completedAt: SimulationTick
@@ -54,6 +54,7 @@ export interface JourneyScenarioSettings {
   readonly servedFloors?: readonly Floor[]
   readonly servedFloorsByElevator?: readonly ElevatorServedFloors[]
   readonly parking?: readonly ElevatorParkingSettings[]
+  readonly maintenance?: readonly ElevatorMaintenanceSettings[]
   readonly dispatchStrategy?: DispatchStrategy
   readonly lunchOverloadStairs?: LunchOverloadStairSettings
 }
@@ -101,7 +102,7 @@ export function runJourneyScenario(
 ): JourneyScenarioResult {
   validateScenario(state, intents, settings)
   const processedEventStart = state.processedEvents.length
-  const dispatcher = new BaselineDispatcher(settings.elevatorTiming, settings.seed, settings.parking, settings.dispatchStrategy, settings.servedFloorsByElevator)
+  const dispatcher = new BaselineDispatcher(settings.elevatorTiming, settings.seed, settings.parking, settings.dispatchStrategy, settings.servedFloorsByElevator, settings.maintenance)
   const nextCallId = Math.max(0, ...state.hallCalls.keys()) + 1
   if (!Number.isSafeInteger(nextCallId)) throw new RangeError('Закончился диапазон ID вызовов')
   const coordinator = new JourneyCoordinator(dispatcher, settings, nextCallId)
@@ -113,6 +114,24 @@ export function runJourneyScenario(
       if (tick >= state.currentTime) boundaryTicks.add(tick)
     }
     for (const time of boundaryTicks) simulator.scheduleOwned({ time, kind: 'parking-rule-boundary', subjectId: config.elevatorId, employeeIdForOrdering: null, payload: { elevatorId: config.elevatorId } })
+  }
+  const maintenanceIds = new Set<number>()
+  for (const config of settings.maintenance ?? []) {
+    if (maintenanceIds.has(config.elevatorId) || !state.elevators.has(config.elevatorId)) throw new Error('Настройки недоступности должны относиться к уникальным существующим лифтам')
+    maintenanceIds.add(config.elevatorId)
+    const intervals = [...config.intervals].sort((a,b) => a.startMinute - b.startMinute)
+    for (const [index, interval] of intervals.entries()) {
+      if (!Number.isInteger(interval.startMinute) || !Number.isInteger(interval.endMinute) || interval.startMinute < 0 || interval.endMinute > 1440 || interval.startMinute >= interval.endMinute) throw new RangeError('Интервал недоступности задан некорректно')
+      if (index > 0 && intervals[index - 1].endMinute > interval.startMinute) throw new Error('Интервалы недоступности одного лифта не должны пересекаться')
+    }
+  }
+  for (const config of settings.maintenance ?? []) {
+    const boundaryTicks = new Set<SimulationTick>([state.currentTime])
+    for (const minute of new Set(config.intervals.flatMap((interval) => [interval.startMinute, interval.endMinute]))) {
+      const tick = minuteToSimulationTick(minute)
+      if (tick >= state.currentTime) boundaryTicks.add(tick)
+    }
+    for (const time of boundaryTicks) simulator.scheduleOwned({ time, kind: 'maintenance-rule-boundary', subjectId: config.elevatorId, employeeIdForOrdering: null, payload: { elevatorId: config.elevatorId } })
   }
 
   const orderedIntents = [...intents].sort(
@@ -187,10 +206,40 @@ class JourneyCoordinator implements SimulationCoordinator {
       case 'hall-call-created':
         this.pendingHallCalls.delete((event.payload as HallCallCreatedPayload).call.id)
         break
+      case 'maintenance-rule-boundary':
+        this.moveStrandedEmployeesToStairs(simulator)
+        break
       default:
         break
     }
     this.flushCompletionBatchIfReady(event, simulator)
+  }
+
+  private moveStrandedEmployeesToStairs(simulator: Simulator): void {
+    for (const active of this.active.values()) {
+      if (active.phase !== 'elevator' || active.trace.boardedAt !== null) continue
+      const employee = simulator.state.employees.get(active.intent.employeeId)!
+      const elevatorTarget = active.intent.elevatorExitFloor ?? active.intent.targetFloor
+      if (this.dispatcher.hasOperationalElevatorForFloors(simulator, employee.currentFloor, elevatorTarget)) continue
+      simulator.cancelScheduled((event) => event.kind === 'passenger-entered' && event.subjectId === employee.id)
+      for (const elevator of simulator.state.elevators.values()) elevator.pendingBoardingEmployeeIds = elevator.pendingBoardingEmployeeIds.filter((id) => id !== employee.id)
+      for (const call of simulator.state.hallCalls.values()) {
+        if (!call.waitingEmployeeIds.includes(employee.id)) continue
+        call.waitingEmployeeIds = call.waitingEmployeeIds.filter((id) => id !== employee.id)
+        if (call.waitingEmployeeIds.length === 0) {
+          call.status = 'served'; call.assignedElevatorId = null
+          this.activeHallCallByDirectionFloor.delete(`${call.floor}:${call.direction}`)
+        }
+      }
+      employee.activeCallId = null
+      employee.elevatorId = null
+      if (active.elevatorRequestedAt !== null) active.trace.waitingTicks = (simulator.state.currentTime - active.elevatorRequestedAt) as SimulationTick
+      const distanceFloors = floorDistance(employee.currentFloor, active.intent.targetFloor)
+      active.trace.choice = { ...active.trace.choice, mode: 'stairs', fromFloor: employee.currentFloor, toFloor: active.intent.targetFloor, distanceFloors, stairDurationSeconds: distanceFloors * this.settings.stairSettings.secondsPerFloor }
+      active.phase = 'single'
+      active.phaseStartedAt = simulator.state.currentTime
+      this.scheduleMandatoryStairs(simulator, active, active.intent.targetFloor)
+    }
   }
 
   completedTraces(): readonly JourneyTrace[] {
@@ -241,7 +290,17 @@ class JourneyCoordinator implements SimulationCoordinator {
       choice = this.lunchOverloadChoice(simulator, intent, fromFloor, targetFloor, choice)
     }
     const actualDistance = floorDistance(targetFloor, fromFloor)
-    const selectedMode = intent.fixedTransportMode ?? (choice.mode === 'none' && actualDistance > 0 ? 'elevator' : choice.mode)
+    let selectedMode = intent.fixedTransportMode ?? (choice.mode === 'none' && actualDistance > 0 ? 'elevator' : choice.mode)
+    const allowed = selectedMode === 'elevator' ? (intent.allowedElevatorFloors ?? this.settings.servedFloors) : undefined
+    const operationalElevatorIds = new Set([...simulator.state.elevators.keys()].filter((id) => !this.dispatcher.isUnderMaintenance(id, simulator.state.currentTime)))
+    const compatiblePair = selectedMode === 'elevator' && this.settings.servedFloorsByElevator !== undefined
+      ? resolveCompatibleElevatorPair(fromFloor, targetFloor, allowed, intent, this.settings, operationalElevatorIds)
+      : null
+    if (selectedMode === 'elevator' && operationalElevatorIds.size === 0) selectedMode = 'stairs'
+    else if (selectedMode === 'elevator' && this.settings.servedFloorsByElevator !== undefined && compatiblePair === null) {
+      if (operationalElevatorIds.size < simulator.state.elevators.size) selectedMode = 'stairs'
+      else throw new Error(`Ни один лифт не может обслужить маршрут с ${fromFloor} на ${targetFloor} этаж`)
+    }
     const effectiveChoice = {
       ...choice,
       mode: actualDistance === 0 ? 'none' as const : selectedMode,
@@ -267,18 +326,15 @@ class JourneyCoordinator implements SimulationCoordinator {
       stairsTicks: secondsToTicks(0),
       totalTicks: secondsToTicks(0),
     }
-    const allowed = selectedMode === 'elevator' ? (intent.allowedElevatorFloors ?? this.settings.servedFloors) : undefined
-    const compatiblePair = selectedMode === 'elevator' && this.settings.servedFloorsByElevator !== undefined
-      ? resolveCompatibleElevatorPair(fromFloor, targetFloor, allowed, intent, this.settings)
-      : null
-    const elevatorExitFloor = compatiblePair?.exit ?? intent.elevatorExitFloor ?? (
-      allowed !== undefined && !allowed.includes(targetFloor)
-        ? nearestAllowedFloor(targetFloor, allowed, fromFloor, this.settings, employee.id, intent.id, 'exit')
+    const effectiveAllowed = selectedMode === 'elevator' ? allowed : undefined
+    const elevatorExitFloor = selectedMode === 'stairs' ? targetFloor : compatiblePair?.exit ?? intent.elevatorExitFloor ?? (
+      effectiveAllowed !== undefined && !effectiveAllowed.includes(targetFloor)
+        ? nearestAllowedFloor(targetFloor, effectiveAllowed, fromFloor, this.settings, employee.id, intent.id, 'exit')
         : targetFloor
     )
-    const boardingFloor = compatiblePair?.boarding ?? intent.elevatorBoardingFloor ?? (
-      allowed !== undefined && !allowed.includes(fromFloor)
-        ? nearestAllowedFloor(fromFloor, allowed, elevatorExitFloor, this.settings, employee.id, intent.id, 'boarding')
+    const boardingFloor = selectedMode === 'stairs' ? fromFloor : compatiblePair?.boarding ?? intent.elevatorBoardingFloor ?? (
+      effectiveAllowed !== undefined && !effectiveAllowed.includes(fromFloor)
+        ? nearestAllowedFloor(fromFloor, effectiveAllowed, elevatorExitFloor, this.settings, employee.id, intent.id, 'boarding')
         : fromFloor
     )
     const resolvedIntent = { ...intent, targetFloor, elevatorBoardingFloor: boardingFloor, elevatorExitFloor }
@@ -556,10 +612,12 @@ function resolveCompatibleElevatorPair(
   globallyAllowed: readonly Floor[] | undefined,
   intent: JourneyIntent,
   settings: JourneyScenarioSettings,
-): { boarding: Floor; exit: Floor } {
+  operationalElevatorIds?: ReadonlySet<number>,
+): { boarding: Floor; exit: Floor } | null {
   const global = globallyAllowed === undefined ? null : new Set(globallyAllowed)
   const candidates: Array<{ elevatorId: number; boarding: Floor; exit: Floor; cost: number }> = []
   for (const config of settings.servedFloorsByElevator ?? []) {
+    if (operationalElevatorIds !== undefined && !operationalElevatorIds.has(config.elevatorId)) continue
     const floors = config.floors.filter((floor) => global === null || global.has(floor))
     const boardingFloors = intent.elevatorBoardingFloor === undefined ? floors : floors.filter((floor) => floor === intent.elevatorBoardingFloor)
     const exitFloors = intent.elevatorExitFloor === undefined ? floors : floors.filter((floor) => floor === intent.elevatorExitFloor)
@@ -572,7 +630,7 @@ function resolveCompatibleElevatorPair(
       candidates.push({ elevatorId: config.elevatorId, boarding, exit, cost })
     }
   }
-  if (candidates.length === 0) throw new Error(`Ни один лифт не может обслужить маршрут с ${fromFloor} на ${targetFloor} этаж`)
+  if (candidates.length === 0) return null
   candidates.sort((first, second) => first.cost - second.cost || first.elevatorId - second.elevatorId || first.boarding - second.boarding || first.exit - second.exit)
   return candidates[0]
 }
@@ -582,7 +640,7 @@ function validateScenario(
   intents: readonly JourneyIntent[],
   settings: JourneyScenarioSettings,
 ): void {
-  new BaselineDispatcher(settings.elevatorTiming, settings.seed, settings.parking, settings.dispatchStrategy, settings.servedFloorsByElevator)
+  new BaselineDispatcher(settings.elevatorTiming, settings.seed, settings.parking, settings.dispatchStrategy, settings.servedFloorsByElevator, settings.maintenance)
   stairProbability(1, settings.stairSettings)
   if (settings.lunchOverloadStairs !== undefined) lunchOverloadStairProbability(1, settings.stairSettings.convenient, settings.lunchOverloadStairs)
   if (!Number.isSafeInteger(settings.floorCount) || settings.floorCount < 2 || settings.floorCount > 100) {

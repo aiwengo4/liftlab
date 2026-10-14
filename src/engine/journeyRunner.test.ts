@@ -54,6 +54,35 @@ function intent(overrides: Partial<JourneyIntent> = {}): JourneyIntent {
 }
 
 describe('runJourneyScenario', () => {
+  it('sends the employee by stairs when every suitable elevator is unavailable all day', () => {
+    const result = runJourneyScenario(
+      createSimulationState({ elevators: [elevator()], employees: [employee()] }),
+      [intent({ fixedTransportMode: 'elevator' })],
+      {
+        seed: 42, floorCount: 7, elevatorTiming: DEFAULT_ELEVATOR_TIMING, stairSettings: elevatorOnly,
+        servedFloorsByElevator: [{ elevatorId: 1, floors: [1, 2, 3, 4, 5, 6, 7] }],
+        maintenance: [{ elevatorId: 1, intervals: [{ startMinute: 0, endMinute: 1440 }] }],
+      },
+    )
+    expect(result.processedEvents.some((event) => event.kind === 'passenger-entered')).toBe(false)
+    expect(result.traces[0].waitingTicks).toBe(0)
+    expect(result.traces[0].ridingTicks).toBe(0)
+    expect(ticksToSeconds(result.traces[0].stairsTicks)).toBe(15)
+  })
+
+  it('uses another suitable elevator while one cabin is unavailable', () => {
+    const result = runJourneyScenario(
+      createSimulationState({ elevators: [elevator(), { ...elevator(), id: 2 }], employees: [employee()] }),
+      [intent({ fixedTransportMode: 'elevator' })],
+      {
+        seed: 42, floorCount: 7, elevatorTiming: DEFAULT_ELEVATOR_TIMING, stairSettings: elevatorOnly,
+        servedFloorsByElevator: [{ elevatorId: 1, floors: [1, 2] }, { elevatorId: 2, floors: [1, 2] }],
+        maintenance: [{ elevatorId: 1, intervals: [{ startMinute: 0, endMinute: 1440 }] }],
+      },
+    )
+    const entered = result.processedEvents.find((event) => event.kind === 'passenger-entered')
+    expect((entered?.payload as { elevatorId: number }).elevatorId).toBe(2)
+  })
   it('assigns a call only to a cabin serving both origin and destination', () => {
     const first = { ...elevator(), id: 1 }
     const second = { ...elevator(), id: 2 }

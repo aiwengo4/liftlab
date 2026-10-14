@@ -39,6 +39,7 @@ export function runScenarioFromForm(form: ScenarioFormState): FullDayResult {
       lunchOverloadStairs: { ...DEFAULT_LUNCH_OVERLOAD_STAIR_SETTINGS, enabled: form.lunchOverloadStairsEnabled, probabilities: form.lunchOverloadStairProbabilities, inconvenientFactor: form.inconvenientStairFactor },
       metrics: { periods: { morning: { startMinute: form.reportMorningStart, endMinute: form.reportDayStart }, day: { startMinute: form.reportDayStart, endMinute: form.reportEveningStart }, evening: { startMinute: form.reportEveningStart, endMinute: form.reportEveningEnd } }, longWaitThresholdSeconds: [...new Set([60, 90, ...form.longWaitThresholds])].sort((first, second) => first - second) },
       parking: form.parkingByElevator.flatMap((parking, index) => parking.enabled ? [{ elevatorId: index + 1, timeoutSeconds: parking.timeoutSeconds, intervals: parking.intervals }] : []),
+      maintenance: form.maintenanceByElevator.flatMap((maintenance, index) => maintenance.enabled ? [{ elevatorId: index + 1, intervals: maintenance.intervals }] : []),
     },
   )
 }

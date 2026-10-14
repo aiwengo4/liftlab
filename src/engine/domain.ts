@@ -84,6 +84,7 @@ export type SimulationEventKind =
   | 'parking-timeout'
   | 'parking-rule-boundary'
   | 'parking-step-arrived'
+  | 'maintenance-rule-boundary'
   | 'journey-requested'
   | 'stairs-segment-completed'
 

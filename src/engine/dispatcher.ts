@@ -28,6 +28,8 @@ import {
 
 export interface ParkingInterval { readonly startMinute: number; readonly endMinute: number; readonly floor: Floor }
 export interface ElevatorParkingSettings { readonly elevatorId: ElevatorId; readonly timeoutSeconds: number; readonly intervals: readonly ParkingInterval[] }
+export interface MaintenanceInterval { readonly startMinute: number; readonly endMinute: number }
+export interface ElevatorMaintenanceSettings { readonly elevatorId: ElevatorId; readonly intervals: readonly MaintenanceInterval[] }
 export interface ElevatorServedFloors { readonly elevatorId: ElevatorId; readonly floors: readonly Floor[] }
 export type DispatchStrategy = 'global-fifo' | 'nearest' | 'hybrid'
 export const HYBRID_FIFO_AFTER_SECONDS = 120
@@ -47,6 +49,7 @@ export class BaselineDispatcher implements SimulationCoordinator {
     private readonly parking: readonly ElevatorParkingSettings[] = [],
     private readonly strategy: DispatchStrategy = 'nearest',
     servedFloorsByElevator: readonly ElevatorServedFloors[] = [],
+    private readonly maintenance: readonly ElevatorMaintenanceSettings[] = [],
   ) {
     this.random = new SeededRandom(seed)
     this.servedFloorsByElevator = new Map(servedFloorsByElevator.map(({ elevatorId, floors }) => [elevatorId, new Set(floors)]))
@@ -129,6 +132,9 @@ export class BaselineDispatcher implements SimulationCoordinator {
       case 'parking-step-arrived':
         this.continueAfterParkingStep(simulator, event.payload as ParkingStepPayload)
         return
+      case 'maintenance-rule-boundary':
+        this.refreshMaintenance(simulator, event.payload as ElevatorPayload)
+        return
     }
   }
 
@@ -197,7 +203,7 @@ export class BaselineDispatcher implements SimulationCoordinator {
     while (true) {
       const waitingCalls = this.nearestAssignmentCandidates(simulator)
       const idleElevators = [...simulator.state.elevators.values()].filter(
-        (elevator) => elevator.state === 'idle-closed',
+        (elevator) => elevator.state === 'idle-closed' && !this.isUnderMaintenance(elevator.id, simulator.state.currentTime),
       )
 
       const impossible = waitingCalls.find((call) => ![...simulator.state.elevators.values()].some((elevator) => this.servesCall(simulator, elevator, call)))
@@ -233,6 +239,7 @@ export class BaselineDispatcher implements SimulationCoordinator {
       let elevator: Elevator | undefined
       for (const candidate of simulator.state.elevators.values()) {
         if (
+          !this.isUnderMaintenance(candidate.id, simulator.state.currentTime) &&
           candidate.currentFloor === call.floor &&
           candidate.direction === call.direction &&
           ['opening-doors', 'doors-open', 'closing-doors'].includes(candidate.state) &&
@@ -363,6 +370,7 @@ export class BaselineDispatcher implements SimulationCoordinator {
       let elevator: Elevator | undefined
       for (const candidate of simulator.state.elevators.values()) {
         if (
+          !this.isUnderMaintenance(candidate.id, simulator.state.currentTime) &&
           this.canPickUpOnCurrentMovement(candidate, call, simulator.state.currentTime) &&
           this.servesCall(simulator, candidate, call) &&
           (elevator === undefined || candidate.id < elevator.id)
@@ -575,7 +583,8 @@ export class BaselineDispatcher implements SimulationCoordinator {
       )
       .sort((first, second) => first - second)
 
-    this.claimOppositeCallAtTurnaround(simulator, elevator, exitingIds)
+    const unavailable = this.isUnderMaintenance(elevator.id, simulator.state.currentTime)
+    if (!unavailable) this.claimOppositeCallAtTurnaround(simulator, elevator, exitingIds)
 
     let transferTime = simulator.state.currentTime
 
@@ -592,7 +601,7 @@ export class BaselineDispatcher implements SimulationCoordinator {
       )
     }
 
-    const callsAtFloor = elevator.assignedCallIds
+    const callsAtFloor = (unavailable ? [] : elevator.assignedCallIds)
       .map((callId) => simulator.state.hallCalls.get(callId)!)
       .filter(
         (call) =>
@@ -783,8 +792,10 @@ export class BaselineDispatcher implements SimulationCoordinator {
     }
 
     if (elevator.state === 'idle-closed') {
-      this.requestDispatchIfNeeded(simulator, elevator.id)
-      this.armParkingIfNeeded(simulator, elevator)
+      if (!this.isUnderMaintenance(elevator.id, simulator.state.currentTime)) {
+        this.requestDispatchIfNeeded(simulator, elevator.id)
+        this.armParkingIfNeeded(simulator, elevator)
+      }
       return
     }
 
@@ -793,7 +804,7 @@ export class BaselineDispatcher implements SimulationCoordinator {
     if (target === null) {
       elevator.state = 'idle-closed'
       elevator.direction = 'idle'
-      this.requestDispatchIfNeeded(simulator, elevator.id)
+      if (!this.isUnderMaintenance(elevator.id, simulator.state.currentTime)) this.requestDispatchIfNeeded(simulator, elevator.id)
       return
     }
 
@@ -836,6 +847,7 @@ export class BaselineDispatcher implements SimulationCoordinator {
   }
 
   private armParkingIfNeeded(simulator: Simulator, elevator: Elevator): void {
+    if (this.isUnderMaintenance(elevator.id, simulator.state.currentTime)) return
     const config = this.parking.find((item) => item.elevatorId === elevator.id)
     const floor = this.activeParkingFloor(elevator.id, simulator.state.currentTime)
     elevator.parkingFloor = floor
@@ -847,6 +859,7 @@ export class BaselineDispatcher implements SimulationCoordinator {
 
   private handleParkingTimeout(simulator: Simulator, payload: ElevatorPayload): void {
     const elevator = simulator.state.elevators.get(payload.elevatorId)!
+    if (this.isUnderMaintenance(elevator.id, simulator.state.currentTime)) return
     if (elevator.state !== 'idle-closed' || elevator.parkingTimeoutAt !== simulator.state.currentTime) return
     elevator.parkingTimeoutAt = null
     if (this.hasWaitingCalls(simulator)) { this.requestDispatchIfNeeded(simulator, elevator.id); return }
@@ -972,6 +985,61 @@ export class BaselineDispatcher implements SimulationCoordinator {
     const position = calls.findIndex((candidate) => candidate.id === call.id)
     if (position !== -1) calls.splice(position, 1)
     if (calls.length === 0) this.waitingCallsByFloorDirection.delete(key)
+  }
+
+  public isUnderMaintenance(elevatorId: ElevatorId, tick: SimulationTick): boolean {
+    const minute = Number(tick) / Number(secondsToTicks(60))
+    return this.maintenance.find((item) => item.elevatorId === elevatorId)?.intervals.some((interval) => minute >= interval.startMinute && minute < interval.endMinute) ?? false
+  }
+
+  public hasOperationalElevatorForFloors(simulator: Simulator, fromFloor: Floor, targetFloor: Floor): boolean {
+    return [...simulator.state.elevators.values()].some((elevator) =>
+      !this.isUnderMaintenance(elevator.id, simulator.state.currentTime) &&
+      this.servesFloor(elevator, fromFloor) && this.servesFloor(elevator, targetFloor),
+    )
+  }
+
+  private refreshMaintenance(simulator: Simulator, payload: ElevatorPayload): void {
+    const elevator = simulator.state.elevators.get(payload.elevatorId)!
+    if (!this.isUnderMaintenance(elevator.id, simulator.state.currentTime)) {
+      if (elevator.state === 'idle-closed') {
+        this.requestDispatchIfNeeded(simulator, elevator.id)
+        this.armParkingIfNeeded(simulator, elevator)
+      }
+      return
+    }
+    elevator.parkingTimeoutAt = null
+    simulator.cancelScheduled((event) => ['parking-timeout', 'parking-step-arrived'].includes(event.kind) && event.subjectId === elevator.id)
+    this.parkingMoving.delete(elevator.id)
+    for (const callId of [...elevator.assignedCallIds]) {
+      const call = simulator.state.hallCalls.get(callId)
+      if (call === undefined || call.status === 'served') continue
+      call.status = 'waiting'
+      call.assignedElevatorId = null
+      this.trackWaitingCall(simulator, call.id)
+    }
+    elevator.assignedCallIds = []
+    elevator.mandatoryCallId = null
+    simulator.cancelScheduled((event) => event.kind === 'passenger-entered' && (event.payload as PassengerEnteredPayload).elevatorId === elevator.id)
+    elevator.pendingBoardingEmployeeIds = []
+    if (elevator.passengerIds.length === 0) {
+      simulator.cancelScheduledKinds(['elevator-doors-opened', 'elevator-doors-closing-started', 'elevator-doors-closed'], elevator.id)
+      if (elevator.movement !== null) {
+        const movement = elevator.movement
+        const duration = Math.max(1, Number(movement.arrivesAt - movement.startedAt))
+        const progress = Math.max(0, Math.min(1, Number(simulator.state.currentTime - movement.startedAt) / duration))
+        const projected = movement.fromFloor + (movement.toFloor - movement.fromFloor) * progress
+        const available = [...(this.servedFloorsByElevator.get(elevator.id) ?? new Set([movement.fromFloor, movement.toFloor]))]
+        elevator.currentFloor = available.sort((first, second) => Math.abs(first - projected) - Math.abs(second - projected) || first - second)[0]
+      }
+      elevator.scheduledStops = []
+      elevator.movement = null
+      elevator.state = 'idle-closed'
+      elevator.direction = 'idle'
+    } else {
+      elevator.scheduledStops = [...new Set(elevator.passengerIds.map((id) => simulator.state.employees.get(id)?.targetFloor).filter((floor): floor is Floor => floor !== null && floor !== undefined))]
+    }
+    simulator.scheduleOwned(this.systemEvent(simulator.state.currentTime, 'dispatch-requested', elevator.id, null))
   }
 
   private nextStop(elevator: Elevator): Floor | null {

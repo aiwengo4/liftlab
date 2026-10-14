@@ -1,6 +1,6 @@
 import { createDefaultScenarioForm, repairUnavailableParkingFloors, type ScenarioFormState } from './scenarioForm'
 
-const VERSION = 7
+const VERSION = 8
 const PREFIX = '#settings='
 const MAX_ENCODED_LENGTH = 100_000
 
@@ -36,7 +36,7 @@ export function decodeScenarioHash(hash: string): ScenarioLinkResult {
     const binary = atob(base64)
     const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0))
     const parsed: unknown = JSON.parse(new TextDecoder().decode(bytes))
-    if (!isRecord(parsed) || ![1, 2, 3, 4, 5, 6, VERSION].includes(Number(parsed.version))) return { ok: false, reason: 'Версия ссылки не поддерживается' }
+    if (!isRecord(parsed) || ![1, 2, 3, 4, 5, 6, 7, VERSION].includes(Number(parsed.version))) return { ok: false, reason: 'Версия ссылки не поддерживается' }
     const candidate = normalizeScenarioForm(parsed.scenario, parsed.version === 1, parsed.version !== VERSION)
     if (candidate === null) return { ok: false, reason: 'Настройки в ссылке имеют неверный формат' }
     return { ok: true, scenario: candidate, migrated: parsed.version !== VERSION }
@@ -66,6 +66,7 @@ export function normalizeScenarioForm(value: unknown, allowLegacyDefaults = fals
     ...(typeof value.undergroundFloorCount !== 'number' ? { undergroundFloorCount: 1 } : {}),
     ...(typeof value.undergroundEmployeeShare !== 'number' ? { undergroundEmployeeShare: 0 } : {}),
     ...(!Array.isArray(value.servedFloorsByElevator) ? { servedFloorsByElevator: Array.from({ length: integer(value.elevatorCount) && value.elevatorCount >= 1 && value.elevatorCount <= 20 ? value.elevatorCount : defaults.elevatorCount }, () => Array.isArray(value.floors) ? value.floors.filter((floor) => isRecord(floor) && floor.served === true).map((floor) => floor.floor as number) : defaults.floors.map(({ floor }) => floor)) } : {}),
+    ...(!Array.isArray(value.maintenanceByElevator) ? { maintenanceByElevator: Array.from({ length: integer(value.elevatorCount) && value.elevatorCount >= 1 && value.elevatorCount <= 20 ? value.elevatorCount : defaults.elevatorCount }, () => ({ enabled: false, intervals: [] })) } : {}),
   }
   return isScenario(candidate) ? repairUnavailableParkingFloors(candidate) : null
 }
@@ -83,11 +84,12 @@ function isScenario(value: unknown): value is ScenarioFormState {
   if (!Array.isArray(value.initialElevatorFloors) || !value.initialElevatorFloors.every(integer)) return false
   if (!Array.isArray(value.servedFloorsByElevator) || !value.servedFloorsByElevator.every((floors) => Array.isArray(floors) && floors.every(integer))) return false
   if (!Array.isArray(value.parkingByElevator) || !value.parkingByElevator.every((parking) => isRecord(parking) && typeof parking.enabled === 'boolean' && finite(parking.timeoutSeconds) && Array.isArray(parking.intervals) && parking.intervals.every((interval) => isRecord(interval) && integer(interval.startMinute) && integer(interval.endMinute) && integer(interval.floor)))) return false
+  if (!Array.isArray(value.maintenanceByElevator) || !value.maintenanceByElevator.every((maintenance) => isRecord(maintenance) && typeof maintenance.enabled === 'boolean' && Array.isArray(maintenance.intervals) && maintenance.intervals.every((interval) => isRecord(interval) && integer(interval.startMinute) && integer(interval.endMinute)))) return false
   for (const key of ['meetingDurationShares','meetingRoomFoundSharesByHour','convenientStairProbabilities','inconvenientStairProbabilities','longWaitThresholds']) {
     if (!(value[key] as unknown[]).every(finite)) return false
   }
   if (!integer(value.floorCount) || value.floors.length !== value.floorCount) return false
-  if (!integer(value.elevatorCount) || value.initialElevatorFloors.length !== value.elevatorCount || value.parkingByElevator.length !== value.elevatorCount || value.servedFloorsByElevator.length !== value.elevatorCount) return false
+  if (!integer(value.elevatorCount) || value.initialElevatorFloors.length !== value.elevatorCount || value.parkingByElevator.length !== value.elevatorCount || value.maintenanceByElevator.length !== value.elevatorCount || value.servedFloorsByElevator.length !== value.elevatorCount) return false
   if (!['manual', 'equal'].includes(String(value.distributionMode))) return false
   if (!['global-fifo', 'nearest', 'hybrid'].includes(String(value.dispatchStrategy))) return false
   if (!arrayLength(value.meetingDurationShares, 3) || !arrayLength(value.meetingRoomFoundSharesByHour, 24) || !arrayLength(value.convenientStairProbabilities, 6) || !arrayLength(value.inconvenientStairProbabilities, 6) || !arrayLength(value.lunchOverloadStairProbabilities, 7) || !(value.lunchOverloadStairProbabilities as unknown[]).every(finite) || !arrayLength(value.longWaitThresholds, 3)) return false

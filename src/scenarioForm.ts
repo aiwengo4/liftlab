@@ -74,9 +74,11 @@ export interface ScenarioFormState {
   readonly reportEveningEnd: number
   readonly longWaitThresholds: readonly [number, number, number]
   readonly parkingByElevator: readonly ElevatorParkingForm[]
+  readonly maintenanceByElevator: readonly ElevatorMaintenanceForm[]
 }
 
 export interface ElevatorParkingForm { readonly enabled: boolean; readonly timeoutSeconds: number; readonly intervals: readonly { readonly startMinute: number; readonly endMinute: number; readonly floor: number }[] }
+export interface ElevatorMaintenanceForm { readonly enabled: boolean; readonly intervals: readonly { readonly startMinute: number; readonly endMinute: number }[] }
 
 export type ScenarioFormErrors = Readonly<Record<string, string>>
 
@@ -136,6 +138,7 @@ export function createDefaultScenarioForm(): ScenarioFormState {
     reportEveningEnd: 23 * 60,
     longWaitThresholds: [120, 240, 360],
     parkingByElevator: [defaultParking(), defaultParking()],
+    maintenanceByElevator: [defaultMaintenance(), defaultMaintenance()],
   }
 }
 
@@ -167,6 +170,7 @@ export function resizeElevators(values: ScenarioFormState, elevatorCount: number
     initialElevatorFloors: Array.from({ length: elevatorCount }, (_, index) => values.initialElevatorFloors[index] ?? 1),
     servedFloorsByElevator: Array.from({ length: elevatorCount }, (_, index) => values.servedFloorsByElevator[index] ?? availableFloors(values)),
     parkingByElevator: Array.from({ length: elevatorCount }, (_, index) => values.parkingByElevator[index] ?? defaultParking()),
+    maintenanceByElevator: Array.from({ length: elevatorCount }, (_, index) => values.maintenanceByElevator[index] ?? defaultMaintenance()),
   }
 }
 
@@ -281,6 +285,17 @@ export function validateScenarioForm(values: ScenarioFormState): ScenarioFormErr
       if (index > 0 && ordered[index - 1].endMinute > interval.startMinute && !errors[key]) errors[key] = 'Интервалы парковки пересекаются'
     })
   })
+  if (values.maintenanceByElevator.length !== values.elevatorCount) errors.maintenance = 'Для каждого лифта нужны настройки недоступности'
+  values.maintenanceByElevator.forEach((maintenance, elevatorIndex) => {
+    if (!maintenance.enabled) return
+    const key = `maintenance-${elevatorIndex}`
+    if (maintenance.intervals.length === 0) errors[key] = 'Добавьте хотя бы один интервал'
+    const ordered = [...maintenance.intervals].sort((a,b) => a.startMinute - b.startMinute)
+    ordered.forEach((interval,index) => {
+      if (!validPeriod(interval.startMinute, interval.endMinute) && !errors[key]) errors[key] = 'Начало недоступности должно быть раньше окончания'
+      if (index > 0 && ordered[index - 1].endMinute > interval.startMinute && !errors[key]) errors[key] = 'Интервалы недоступности пересекаются'
+    })
+  })
   values.initialElevatorFloors.forEach((floor, index) => { if (!allowedFloors.has(floor) || (floor > 0 && !served.has(floor)) || !values.servedFloorsByElevator[index]?.includes(floor)) errors[`elevator-${index}`] = 'Выберите этаж, на котором этот лифт может останавливаться' })
   if (!Number.isSafeInteger(values.cafeteriaFloor) || values.cafeteriaFloor < 1 || values.cafeteriaFloor > values.floorCount) errors.cafeteriaFloor = 'Выберите существующий этаж'
   validateWindow(errors, 'arrival', values.arrivalOverallStart, values.arrivalOverallEnd, values.arrivalPrimaryStart, values.arrivalPrimaryEnd, values.arrivalPrimaryShare)
@@ -300,6 +315,7 @@ export function availableFloors(values: Pick<ScenarioFormState, 'floorCount' | '
   return [...underground, ...createFloorNumbers(values.floorCount)].sort((a, b) => a - b)
 }
 function defaultParking(): ElevatorParkingForm { return { enabled: false, timeoutSeconds: 60, intervals: [] } }
+function defaultMaintenance(): ElevatorMaintenanceForm { return { enabled: false, intervals: [] } }
 function integerRange(errors: Record<string, string>, key: string, value: number, min: number, max: number, message: string): void { if (!Number.isSafeInteger(value) || value < min || value > max) errors[key] = message }
 function numberRange(errors: Record<string, string>, key: string, value: number, min: number, max: number, message: string): void { if (!Number.isFinite(value) || value < min || value > max) errors[key] = message }
 function hasStep(value: number, step: number): boolean { return Number.isFinite(value) && Math.abs(value / step - Math.round(value / step)) < 1e-9 }

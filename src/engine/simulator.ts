@@ -207,6 +207,7 @@ export class Simulator {
       case 'dispatch-requested':
       case 'parking-timeout':
       case 'parking-rule-boundary':
+      case 'maintenance-rule-boundary':
       case 'journey-requested':
         return
       case 'parking-step-arrived':
